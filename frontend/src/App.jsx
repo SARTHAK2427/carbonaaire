@@ -1,4 +1,41 @@
 import { useState, useEffect, useRef } from "react";
+import MLDashboard from "./frontend_mldashboard";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const TOKEN_KEY = "carbonaire_token";
+const USER_KEY = "carbonaire_user";
+
+function getStoredToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeAuthSession({ token, user }) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch {}
+}
+
+function authJsonHeaders() {
+  const token = getStoredToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 
 /* ── GLOBAL STYLES ──────────────────────────────────────────────────────────── */
 const GLOBAL_CSS = `
@@ -1060,112 +1097,159 @@ const GLOBAL_CSS = `
   .w-full { width: 100%; }
   .text-right { text-align: right; }
   .text-center { text-align: center; }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .processing-shimmer {
+    background: linear-gradient(90deg, var(--muted) 25%, var(--g300) 50%, var(--muted) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 600;
+  }
+
+  /* Verification Component */
+  .verify-block {
+    background: #F8F9FA; border: 1px solid var(--line); border-radius: 8px;
+    padding: 20px; margin-bottom: 24px; display: flex; gap: 24px;
+  }
+  .verify-preview {
+    width: 120px; height: 160px; background: var(--white); border: 1px solid var(--line);
+    border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden; flex-shrink: 0; position: relative;
+  }
+  .verify-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .verify-preview-icon { font-size: 32px; margin-bottom: 8px; }
+  .verify-preview-label { font-size: 10px; color: var(--muted); text-align: center; padding: 0 8px; word-break: break-all; }
+  
+  .verify-content { flex: 1; }
+  .verify-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+  .verify-sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  
+  .verify-data-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .verify-data-item { background: var(--white); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; }
+  .verify-data-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .verify-data-val { font-size: 14px; color: var(--ink2); font-weight: 500; }
+
+  .verify-question { border-top: 1px solid var(--line); padding-top: 16px; font-size: 14px; color: var(--ink); }
+  .verify-actions { display: flex; gap: 12px; margin-top: 12px; }
+  .btn-verify { 
+    padding: 8px 16px; border-radius: 4px; font-size: 13px; cursor: pointer; border: 1px solid var(--line);
+    background: var(--white); color: var(--ink); transition: all .15s;
+  }
+  .btn-verify.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn-verify:hover:not(.active) { background: #f0f0f0; }
 `;
 
 /* ── CALCULATION ENGINE ──────────────────────────────────────────────────────── */
-const GEF = { default:0.82, karnataka:0.82, maharashtra:0.79, delhi:0.78, gujarat:0.86, tamil_nadu:0.76 };
+const GEF = { default: 0.82, karnataka: 0.82, maharashtra: 0.79, delhi: 0.78, gujarat: 0.86, tamil_nadu: 0.76 };
 const BENCHMARK = 3.1;
 const BANDS = [
-  { band:"Excellent",       min:0,   max:2.4,     col:"#28541C", bg:"#EEF5EB" },
-  { band:"Good",            min:2.4, max:3.0,     col:"#4E8A3A", bg:"#F2F8EE" },
-  { band:"Industry Normal", min:3.0, max:3.6,     col:"#B08020", bg:"#FDF8EC" },
-  { band:"High Emitter",    min:3.6, max:Infinity, col:"#C05A2C", bg:"#FEF4F0" },
+  { band: "Excellent", min: 0, max: 2.4, col: "#28541C", bg: "#EEF5EB" },
+  { band: "Good", min: 2.4, max: 3.0, col: "#4E8A3A", bg: "#F2F8EE" },
+  { band: "Industry Normal", min: 3.0, max: 3.6, col: "#B08020", bg: "#FDF8EC" },
+  { band: "High Emitter", min: 3.6, max: Infinity, col: "#C05A2C", bg: "#FEF4F0" },
 ];
 
 function calc(d) {
-  const gef  = GEF[d.state] || GEF.default;
-  const ren  = (d.renewable || 0) / 100;
-  const dh   = (d.hours || 8) * 22;
-  const s1d  = (d.diesel  || 0) * 2.68;
-  const s1p  = (d.petrol  || 0) * 2.31;
-  const s1g  = (d.natgas  || 0) * 2.04;
-  const s1l  = (d.lpg     || 0) * 1.51;
-  const s1   = s1d + s1p + s1g + s1l;
-  const s2e  = (d.elec    || 0) * (1-ren) * gef;
+  const gef = GEF[d.state] || GEF.default;
+  const ren = (d.renewable || 0) / 100;
+  const dh = (d.hours || 8) * 22;
+  const s1d = (d.diesel || 0) * 2.68;
+  const s1p = (d.petrol || 0) * 2.31;
+  const s1g = (d.natgas || 0) * 2.04;
+  const s1l = (d.lpg || 0) * 1.51;
+  const s1 = s1d + s1p + s1g + s1l;
+  const s2e = (d.elec || 0) * (1 - ren) * gef;
   const s2la = (d.laptops || 0) * .065 * dh * gef / 1000;
-  const s2de = (d.desktops|| 0) * .2   * dh * gef / 1000;
-  const s2mo = (d.monitors|| 0) * .03  * dh * gef / 1000;
-  const skw  = (d.racks   || 0) * 5 * .42 + (d.servers||0) * .4;
-  const s2sr = skw * (d.srvhrs||24) * 30 * gef / 1000;
-  const s2   = s2e + s2la + s2de + s2mo + s2sr;
-  const s3c  = (d.cloudbill||0) / 8 * 0.00017 * 1000;
-  const s3s  = (d.services ||0) * 0.00015;
-  const s3   = s3c + s3s;
-  const tot  = s1 + s2 + s3;
-  const ann  = tot * 12;
-  const intensity = ann / Math.max(d.revenue||1, .01);
-  const band = BANDS.find(b=>intensity>=b.min&&intensity<b.max)||BANDS[3];
+  const s2de = (d.desktops || 0) * .2 * dh * gef / 1000;
+  const s2mo = (d.monitors || 0) * .03 * dh * gef / 1000;
+  const skw = (d.racks || 0) * 5 * .42 + (d.servers || 0) * .4;
+  const s2sr = skw * (d.srvhrs || 24) * 30 * gef / 1000;
+  const s2 = s2e + s2la + s2de + s2mo + s2sr;
+  const s3c = (d.cloudbill || 0) / 8 * 0.00017 * 1000;
+  const s3s = (d.services || 0) * 0.00015;
+  const s3 = s3c + s3s;
+  const tot = s1 + s2 + s3;
+  const ann = tot * 12;
+  const intensity = ann / Math.max(d.revenue || 1, .01);
+  const band = BANDS.find(b => intensity >= b.min && intensity < b.max) || BANDS[3];
   return {
     s1, s2, s3, tot, ann, intensity, band,
-    monthly:{ s1,s2,s3,tot },
-    annual: { s1:s1*12, s2:s2*12, s3:s3*12, tot:ann },
-    bdown:{ Diesel:s1d, Petrol:s1p, "Natural Gas":s1g, LPG:s1l,
-            Electricity:s2e, Laptops:s2la, Desktops:s2de, Monitors:s2mo, Servers:s2sr,
-            Cloud:s3c, Services:s3s },
+    monthly: { s1, s2, s3, tot },
+    annual: { s1: s1 * 12, s2: s2 * 12, s3: s3 * 12, tot: ann },
+    bdown: {
+      Diesel: s1d, Petrol: s1p, "Natural Gas": s1g, LPG: s1l,
+      Electricity: s2e, Laptops: s2la, Desktops: s2de, Monitors: s2mo, Servers: s2sr,
+      Cloud: s3c, Services: s3s
+    },
   };
 }
 
 function findings(r, d) {
   const f = [];
-  const add = (sev,scope,cat,msg,rec) => f.push({sev,scope,cat,msg,rec});
-  if ((d.diesel||0)>=1000) add("CRITICAL","Scope 1","Diesel Generator",`Critical diesel use: ${d.diesel} L/month = ${r.bdown.Diesel.toFixed(2)} tCO2e/month.`,"Switch to solar with battery backup. Audit all generator idle runtimes.");
-  else if ((d.diesel||0)>=500) add("HIGH","Scope 1","Diesel Generator",`Elevated diesel at ${d.diesel} L/month.`,"Add battery backup systems to reduce generator dependency. Track runtime hours and cut non-essential loads during outages.");
-  if ((d.renewable||0)<10) add("HIGH","Scope 2","Renewable Energy","Renewable share under 10%. Electricity is your highest-leverage reduction lever.","Switch some or all of your electricity to renewables. Rooftop solar or green energy tariffs from your provider can cut this directly. Even 25% renewable reduces your electricity footprint by 25%.");
-  else if ((d.renewable||0)>=50) add("INFO","Scope 2","Renewable Energy",`Strong renewable mix at ${d.renewable}%. Above sector average.`,"Good work. Target 100% renewable as the next milestone.");
-  if (r.tot>0 && r.s2/r.tot>0.6) add("HIGH","Scope 2","Electricity",`Electricity is ${(r.s2/r.tot*100).toFixed(1)}% of your total. The dominant source.`,"Commission an energy audit. Upgrade to energy-efficient servers, enforce device sleep policies, and check your cooling setup.");
-  if ((d.desktops||0)>(d.laptops||0)*.5&&(d.desktops||0)>10) add("MEDIUM","Scope 2","Device Fleet",`${d.desktops} desktops consume roughly 3x more power than equivalent laptops.`,"Replace desktops with laptops in your next hardware refresh. Estimated reduction: 20 to 30% on device-related emissions.");
-  if ((!d.cloud||d.cloud==="none")&&(d.servers||0)>5) add("MEDIUM","Scope 3","Cloud Migration",`${d.servers} on-premise servers with no cloud workloads.`,"Consider migrating some workloads to cloud. Large cloud providers run their infrastructure more efficiently than typical company server rooms.");
-  if (r.intensity>BENCHMARK*1.5) add("CRITICAL","Overall","Benchmark",`Your emission intensity of ${r.intensity.toFixed(2)} tCO2e/Rs Cr is ${((r.intensity/BENCHMARK-1)*100).toFixed(0)}% above the sector average.`,"Set a clear reduction target and focus on your two biggest emission sources first.");
-  else if (r.intensity>BENCHMARK) add("HIGH","Overall","Benchmark",`Your intensity of ${r.intensity.toFixed(2)} tCO2e/Rs Cr is above the Indian IT sector average of ${BENCHMARK}.`,"Set annual reduction targets. Electricity-related actions tend to deliver the fastest results.");
-  else if (r.intensity<=2.4) add("INFO","Overall","Benchmark",`Excellent: ${r.intensity.toFixed(2)} tCO2e/Rs Cr. You are in the top quartile for Indian IT companies.`,"Maintain this trajectory. Consider making your results public as a differentiator with clients.");
-  return f.sort((a,b)=>({CRITICAL:0,HIGH:1,MEDIUM:2,INFO:3}[a.sev]-{CRITICAL:0,HIGH:1,MEDIUM:2,INFO:3}[b.sev]));
+  const add = (sev, scope, cat, msg, rec) => f.push({ sev, scope, cat, msg, rec });
+  if ((d.diesel || 0) >= 1000) add("CRITICAL", "Scope 1", "Diesel Generator", `Critical diesel use: ${d.diesel} L/month = ${r.bdown.Diesel.toFixed(2)} tCO2e/month.`, "Switch to solar with battery backup. Audit all generator idle runtimes.");
+  else if ((d.diesel || 0) >= 500) add("HIGH", "Scope 1", "Diesel Generator", `Elevated diesel at ${d.diesel} L/month.`, "Add battery backup systems to reduce generator dependency. Track runtime hours and cut non-essential loads during outages.");
+  if ((d.renewable || 0) < 10) add("HIGH", "Scope 2", "Renewable Energy", "Renewable share under 10%. Electricity is your highest-leverage reduction lever.", "Switch some or all of your electricity to renewables. Rooftop solar or green energy tariffs from your provider can cut this directly. Even 25% renewable reduces your electricity footprint by 25%.");
+  else if ((d.renewable || 0) >= 50) add("INFO", "Scope 2", "Renewable Energy", `Strong renewable mix at ${d.renewable}%. Above sector average.`, "Good work. Target 100% renewable as the next milestone.");
+  if (r.tot > 0 && r.s2 / r.tot > 0.6) add("HIGH", "Scope 2", "Electricity", `Electricity is ${(r.s2 / r.tot * 100).toFixed(1)}% of your total. The dominant source.`, "Commission an energy audit. Upgrade to energy-efficient servers, enforce device sleep policies, and check your cooling setup.");
+  if ((d.desktops || 0) > (d.laptops || 0) * .5 && (d.desktops || 0) > 10) add("MEDIUM", "Scope 2", "Device Fleet", `${d.desktops} desktops consume roughly 3x more power than equivalent laptops.`, "Replace desktops with laptops in your next hardware refresh. Estimated reduction: 20 to 30% on device-related emissions.");
+  if ((!d.cloud || d.cloud === "none") && (d.servers || 0) > 5) add("MEDIUM", "Scope 3", "Cloud Migration", `${d.servers} on-premise servers with no cloud workloads.`, "Consider migrating some workloads to cloud. Large cloud providers run their infrastructure more efficiently than typical company server rooms.");
+  if (r.intensity > BENCHMARK * 1.5) add("CRITICAL", "Overall", "Benchmark", `Your emission intensity of ${r.intensity.toFixed(2)} tCO2e/Rs Cr is ${((r.intensity / BENCHMARK - 1) * 100).toFixed(0)}% above the sector average.`, "Set a clear reduction target and focus on your two biggest emission sources first.");
+  else if (r.intensity > BENCHMARK) add("HIGH", "Overall", "Benchmark", `Your intensity of ${r.intensity.toFixed(2)} tCO2e/Rs Cr is above the Indian IT sector average of ${BENCHMARK}.`, "Set annual reduction targets. Electricity-related actions tend to deliver the fastest results.");
+  else if (r.intensity <= 2.4) add("INFO", "Overall", "Benchmark", `Excellent: ${r.intensity.toFixed(2)} tCO2e/Rs Cr. You are in the top quartile for Indian IT companies.`, "Maintain this trajectory. Consider making your results public as a differentiator with clients.");
+  return f.sort((a, b) => ({ CRITICAL: 0, HIGH: 1, MEDIUM: 2, INFO: 3 }[a.sev] - { CRITICAL: 0, HIGH: 1, MEDIUM: 2, INFO: 3 }[b.sev]));
 }
 
 /* ── AI KNOWLEDGE ───────────────────────────────────────────────────────────── */
 const KB = {
-  greet:"Hi. I'm Carbonaire's assistant. Ask me anything about carbon emissions, what your results mean, or how to reduce your footprint.",
-  renewable:"Renewable energy is the fastest way to cut electricity-related emissions. Options include rooftop solar (typically pays back in 4 to 6 years), purchasing renewable energy credits to offset your grid usage, or group power arrangements for larger organisations. Even switching 25% of your electricity to renewables cuts that portion of your footprint by 25%.",
-  benchmark:`The Indian IT sector average is 3.1 tCO2e per Rs Crore of revenue. If you're below that, you're doing better than most. The top-performing companies come in below 2.4. These figures come from industry disclosure data across Indian IT and technology companies.`,
-  scope:"Emissions are split into three categories. Direct (Scope 1) covers fuel you burn on-site: generators, vehicles, gas. Electricity (Scope 2) covers your grid power bill, the biggest source for most IT companies. Indirect (Scope 3) covers everything else: cloud computing, outsourced services, device manufacturing. Most IT companies have Scope 2 as 55 to 70% of their total.",
-  cloud:"Migrating workloads to cloud typically reduces server-related emissions by 20 to 40% compared to running your own servers. Large cloud providers run their data centres more efficiently and use more renewable energy than a typical company server room. Google Cloud currently has the lowest carbon intensity, followed by Azure and AWS.",
-  default:"The three highest-impact steps for most IT companies are: (1) Switch some or all of your electricity to renewables, which cuts the biggest slice of your footprint; (2) Improve server room efficiency, as better cooling arrangements reduce energy waste; (3) Move some workloads to cloud, since large providers are more energy-efficient than typical on-premise setups. Would you like to know more about any of these?",
+  greet: "Hi. I'm Carbonaire's assistant. Ask me anything about carbon emissions, what your results mean, or how to reduce your footprint.",
+  renewable: "Renewable energy is the fastest way to cut electricity-related emissions. Options include rooftop solar (typically pays back in 4 to 6 years), purchasing renewable energy credits to offset your grid usage, or group power arrangements for larger organisations. Even switching 25% of your electricity to renewables cuts that portion of your footprint by 25%.",
+  benchmark: `The Indian IT sector average is 3.1 tCO2e per Rs Crore of revenue. If you're below that, you're doing better than most. The top-performing companies come in below 2.4. These figures come from industry disclosure data across Indian IT and technology companies.`,
+  scope: "Emissions are split into three categories. Direct (Scope 1) covers fuel you burn on-site: generators, vehicles, gas. Electricity (Scope 2) covers your grid power bill, the biggest source for most IT companies. Indirect (Scope 3) covers everything else: cloud computing, outsourced services, device manufacturing. Most IT companies have Scope 2 as 55 to 70% of their total.",
+  cloud: "Migrating workloads to cloud typically reduces server-related emissions by 20 to 40% compared to running your own servers. Large cloud providers run their data centres more efficiently and use more renewable energy than a typical company server room. Google Cloud currently has the lowest carbon intensity, followed by Azure and AWS.",
+  default: "The three highest-impact steps for most IT companies are: (1) Switch some or all of your electricity to renewables, which cuts the biggest slice of your footprint; (2) Improve server room efficiency, as better cooling arrangements reduce energy waste; (3) Move some workloads to cloud, since large providers are more energy-efficient than typical on-premise setups. Would you like to know more about any of these?",
 };
-function aiReply(m){
-  const l=m.toLowerCase();
-  if(/\bhello\b|\bhi\b|\bhey\b/.test(l))return KB.greet;
-  if(/renewable|solar|wind|energy/.test(l))return KB.renewable;
-  if(/benchmark|average|median|industry|compare/.test(l))return KB.benchmark;
-  if(/\bscope\b|what is|how does|explain|definition/.test(l))return KB.scope;
-  if(/cloud|aws|azure|gcp|server|migration/.test(l))return KB.cloud;
+function aiReply(m) {
+  const l = m.toLowerCase();
+  if (/\bhello\b|\bhi\b|\bhey\b/.test(l)) return KB.greet;
+  if (/renewable|solar|wind|energy/.test(l)) return KB.renewable;
+  if (/benchmark|average|median|industry|compare/.test(l)) return KB.benchmark;
+  if (/\bscope\b|what is|how does|explain|definition/.test(l)) return KB.scope;
+  if (/cloud|aws|azure|gcp|server|migration/.test(l)) return KB.cloud;
   return KB.default;
 }
 
 /* ── DONUT CHART ──────────────────────────────────────────────────────────── */
-function DonutChart({ data, size=160 }) {
-  const total = data.reduce((s,d)=>s+d.value,0);
-  if(total===0) return null;
-  const r=58, cx=80, cy=80, circ=2*Math.PI*r;
-  let offset=0;
-  const slices=data.map(d=>{
-    const pct=d.value/total;
-    const dash=pct*circ;
-    const slice={...d,dash,offset,pct};
-    offset+=dash;
+function DonutChart({ data, size = 160 }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0) return null;
+  const r = 58, cx = 80, cy = 80, circ = 2 * Math.PI * r;
+  let offset = 0;
+  const slices = data.map(d => {
+    const pct = d.value / total;
+    const dash = pct * circ;
+    const slice = { ...d, dash, offset, pct };
+    offset += dash;
     return slice;
   });
-  return(
+  return (
     <svg viewBox="0 0 160 160" width={size} height={size}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--g50)" strokeWidth="20"/>
-      {slices.map((s,i)=>(
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--g50)" strokeWidth="20" />
+      {slices.map((s, i) => (
         <circle key={i} cx={cx} cy={cy} r={r} fill="none"
           stroke={s.color} strokeWidth="20"
-          strokeDasharray={`${s.dash} ${circ-s.dash}`}
-          strokeDashoffset={-s.offset+circ*.25}
-          style={{transition:`stroke-dasharray 1s cubic-bezier(.22,1,.36,1) ${i*.15}s`}}
+          strokeDasharray={`${s.dash} ${circ - s.dash}`}
+          strokeDashoffset={-s.offset + circ * .25}
+          style={{ transition: `stroke-dasharray 1s cubic-bezier(.22,1,.36,1) ${i * .15}s` }}
         />
       ))}
-      <text x={cx} y={cy-4} textAnchor="middle" fontSize="11" fill="var(--muted)" fontFamily="JetBrains Mono, monospace">tCO2e</text>
-      <text x={cx} y={cy+14} textAnchor="middle" fontSize="13" fill="var(--ink)" fontFamily="JetBrains Mono, monospace" fontWeight="500">
+      <text x={cx} y={cy - 4} textAnchor="middle" fontSize="11" fill="var(--muted)" fontFamily="JetBrains Mono, monospace">tCO2e</text>
+      <text x={cx} y={cy + 14} textAnchor="middle" fontSize="13" fill="var(--ink)" fontFamily="JetBrains Mono, monospace" fontWeight="500">
         {total.toFixed(2)}
       </text>
     </svg>
@@ -1173,99 +1257,148 @@ function DonutChart({ data, size=160 }) {
 }
 
 /* ── GAUGE CHART ──────────────────────────────────────────────────────────── */
-function GaugeSVG({ value, max=9, color }) {
-  const pct = Math.min(value/max, 1);
-  const r=80, cx=100, cy=100;
-  const toXY=(deg)=>{
-    const rad=(deg-90)*Math.PI/180;
-    return [cx+r*Math.cos(rad), cy+r*Math.sin(rad)];
+function GaugeSVG({ value, max = 9, color }) {
+  const pct = Math.min(value / max, 1);
+  const r = 80, cx = 100, cy = 100;
+  const toXY = (deg) => {
+    const rad = (deg - 90) * Math.PI / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
   };
-  const arcPath=(from,to,col,sw=16)=>{
-    const [x1,y1]=toXY(from); const [x2,y2]=toXY(to);
-    const large=(to-from)>180?1:0;
-    return <path d={`M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2}`} fill="none" stroke={col} strokeWidth={sw} strokeLinecap="round"/>;
+  const arcPath = (from, to, col, sw = 16) => {
+    const [x1, y1] = toXY(from); const [x2, y2] = toXY(to);
+    const large = (to - from) > 180 ? 1 : 0;
+    return <path d={`M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2}`} fill="none" stroke={col} strokeWidth={sw} strokeLinecap="round" />;
   };
-  const [nx,ny]=toXY(-90+pct*180);
-  return(
+  const [nx, ny] = toXY(-90 + pct * 180);
+  return (
     <svg viewBox="0 0 200 110" className="gauge-svg">
-      {arcPath(-90,90,"var(--g50)")}
-      {arcPath(-90,-90+pct*180,color)}
-      <circle cx={nx} cy={ny} r="6" fill="var(--white)" stroke={color} strokeWidth="2"/>
-      {[-90,-45,0,45,90].map((a,i)=>{
-        const [x,y]=toXY(a);
-        return <circle key={i} cx={x} cy={y} r="2" fill="var(--line)"/>;
+      {arcPath(-90, 90, "var(--g50)")}
+      {arcPath(-90, -90 + pct * 180, color)}
+      <circle cx={nx} cy={ny} r="6" fill="var(--white)" stroke={color} strokeWidth="2" />
+      {[-90, -45, 0, 45, 90].map((a, i) => {
+        const [x, y] = toXY(a);
+        return <circle key={i} cx={x} cy={y} r="2" fill="var(--line)" />;
       })}
     </svg>
   );
 }
 
 /* ── SIGN UP MODAL ───────────────────────────────────────────────────────── */
-function SignUpModal({ onClose }) {
+function SignUpModal({ onClose, onAuthSuccess }) {
   const [tab, setTab] = useState("signup");
   const [done, setDone] = useState(false);
-  const [formData, setFormData] = useState({ name:"", email:"", company:"", password:"" });
-  const set = (k,v) => setFormData(p=>({...p,[k]:v}));
+  const [formData, setFormData] = useState({ name: "", email: "", company: "", password: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k, v) => setFormData(p => ({ ...p, [k]: v }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setDone(true);
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const res = await fetch(
+        `${API_BASE}${tab === "signup" ? "/api/auth/register" : "/api/auth/login"}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            tab === "signup"
+              ? {
+                  email: formData.email,
+                  name: formData.name,
+                  password: formData.password,
+                  company_name: formData.company,
+                }
+              : {
+                  email: formData.email,
+                  password: formData.password,
+                }
+          ),
+        }
+      );
+      const data = await res.json();
+
+      if (!data.ok) {
+        setError(data.error || data.detail || "Authentication failed. Please try again.");
+        return;
+      }
+
+      const user = {
+        user_id: data.user_id || null,
+        name: data.name || formData.name,
+        email: data.email || formData.email,
+        company_name: formData.company || "",
+      };
+
+      storeAuthSession({ token: data.token, user });
+      onAuthSuccess?.(user);
+      setDone(true);
+    } catch (err) {
+      console.error("Authentication failed:", err);
+      setError("Could not reach the authentication service. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal-box" style={{position:"relative"}}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box" style={{ position: "relative" }}>
         <div className="modal-header">
           <div className="modal-logo">
-            <div className="modal-logo-hex"><span style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,color:"#fff",fontWeight:500}}>C</span></div>
+            <div className="modal-logo-hex"><span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, color: "#fff", fontWeight: 500 }}>C</span></div>
             <span className="modal-logo-text">Carbonaire</span>
           </div>
-          <div className="modal-title">{done ? "You're in." : tab==="signup" ? "Create your account" : "Welcome back"}</div>
-          <div className="modal-sub">{done ? "Check your email to verify your account." : tab==="signup" ? "Free forever. No credit card required." : "Sign in to access your assessments."}</div>
+          <div className="modal-title">{done ? "You're in." : tab === "signup" ? "Create your account" : "Welcome back"}</div>
+          <div className="modal-sub">{done ? "Your account is ready and your session is active." : tab === "signup" ? "Free forever. No credit card required." : "Sign in to access your assessments."}</div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         {done ? (
           <div className="modal-success">
             <div className="modal-success-icon">✓</div>
-            <div className="modal-success-title">Account created</div>
-            <div className="modal-success-sub">We've sent a verification link to <strong>{formData.email}</strong>. Once verified, you can save and track your assessments.</div>
-            <button className="modal-btn" style={{marginTop:24}} onClick={onClose}>Start Your Assessment →</button>
+            <div className="modal-success-title">{tab === "signup" ? "Account created" : "Signed in"}</div>
+            <div className="modal-success-sub">Signed in as <strong>{formData.email}</strong>. Your future assessments can now be saved and personalized.</div>
+            <button className="modal-btn" style={{ marginTop: 24 }} onClick={onClose}>Start Your Assessment →</button>
           </div>
         ) : (
           <div className="modal-body">
             <div className="modal-tabs">
-              <button className={`modal-tab${tab==="signup"?" active":""}`} onClick={()=>setTab("signup")}>Sign Up</button>
-              <button className={`modal-tab${tab==="login"?" active":""}`} onClick={()=>setTab("login")}>Log In</button>
+              <button className={`modal-tab${tab === "signup" ? " active" : ""}`} onClick={() => setTab("signup")}>Sign Up</button>
+              <button className={`modal-tab${tab === "login" ? " active" : ""}`} onClick={() => setTab("login")}>Log In</button>
             </div>
 
             <form onSubmit={handleSubmit}>
-              {tab==="signup" && (
+              {tab === "signup" && (
                 <>
                   <div className="modal-field">
                     <label className="modal-label">Your Name</label>
-                    <input className="modal-input" type="text" placeholder="e.g. Arjun Sharma" value={formData.name} onChange={e=>set("name",e.target.value)} required/>
+                    <input className="modal-input" type="text" placeholder="e.g. Arjun Sharma" value={formData.name} onChange={e => set("name", e.target.value)} required />
                   </div>
                   <div className="modal-field">
                     <label className="modal-label">Company Name</label>
-                    <input className="modal-input" type="text" placeholder="e.g. TechNova Solutions" value={formData.company} onChange={e=>set("company",e.target.value)}/>
+                    <input className="modal-input" type="text" placeholder="e.g. TechNova Solutions" value={formData.company} onChange={e => set("company", e.target.value)} />
                   </div>
                 </>
               )}
               <div className="modal-field">
                 <label className="modal-label">Work Email</label>
-                <input className="modal-input" type="email" placeholder="you@company.com" value={formData.email} onChange={e=>set("email",e.target.value)} required/>
+                <input className="modal-input" type="email" placeholder="you@company.com" value={formData.email} onChange={e => set("email", e.target.value)} required />
               </div>
               <div className="modal-field">
                 <label className="modal-label">Password</label>
-                <input className="modal-input" type="password" placeholder={tab==="signup"?"Create a password (min. 8 chars)":"Your password"} value={formData.password} onChange={e=>set("password",e.target.value)} required minLength={8}/>
+                <input className="modal-input" type="password" placeholder={tab === "signup" ? "Create a password (min. 8 chars)" : "Your password"} value={formData.password} onChange={e => set("password", e.target.value)} required minLength={8} />
               </div>
-              <button className="modal-btn" type="submit">{tab==="signup" ? "Create Free Account" : "Sign In"}</button>
+              {error && <div style={{ marginBottom: 12, color: "#A33C15", fontSize: 13, lineHeight: 1.5 }}>{error}</div>}
+              <button className="modal-btn" type="submit" disabled={submitting}>{submitting ? "Please wait..." : tab === "signup" ? "Create Free Account" : "Sign In"}</button>
             </form>
 
             <div className="modal-note">
-              {tab==="signup"
-                ? <>Already have an account? <span style={{color:"var(--g600)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setTab("login")}>Log in</span></>
-                : <>No account yet? <span style={{color:"var(--g600)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setTab("signup")}>Sign up free</span></>
+              {tab === "signup"
+                ? <>Already have an account? <span style={{ color: "var(--g600)", cursor: "pointer", textDecoration: "underline" }} onClick={() => setTab("login")}>Log in</span></>
+                : <>No account yet? <span style={{ color: "var(--g600)", cursor: "pointer", textDecoration: "underline" }} onClick={() => setTab("signup")}>Sign up free</span></>
               }
             </div>
           </div>
@@ -1349,7 +1482,7 @@ function JourneySection({ onStart }) {
       <div className="jp-field">
         <div className="jp-field-label">Monthly Electricity</div>
         <div className="jp-field-val">18,500 kWh</div>
-        <div className="jp-chart-bar" style={{width:"72%", background:"var(--g600)"}}/>
+        <div className="jp-chart-bar" style={{ width: "72%", background: "var(--g600)" }} />
       </div>
       <div className="jp-row">
         <div className="jp-field">
@@ -1366,35 +1499,35 @@ function JourneySection({ onStart }) {
 
   const OutputPreview = () => (
     <div className="journey-preview-content">
-      <div style={{display:"flex", gap:8, marginBottom:4}}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
         <span className="jp-badge">Good</span>
-        <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,.4)",alignSelf:"center"}}>Below sector average</span>
+        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "rgba(255,255,255,.4)", alignSelf: "center" }}>Below sector average</span>
       </div>
       <div className="jp-field">
         <div className="jp-field-label">Total Annual Emissions</div>
-        <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:32,fontWeight:300,color:"var(--g300)",marginTop:4}}>47.2 tCO2e</div>
+        <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 32, fontWeight: 300, color: "var(--g300)", marginTop: 4 }}>47.2 tCO2e</div>
       </div>
       {[
-        {label:"Electricity", pct:68, col:"var(--g500)"},
-        {label:"Devices", pct:19, col:"var(--g600)"},
-        {label:"Cloud", pct:13, col:"#2E5A8A"},
-      ].map(b=>(
-        <div key={b.label} style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,.4)",width:70}}>{b.label}</div>
-          <div style={{flex:1,height:16,background:"rgba(255,255,255,.06)",borderRadius:2,overflow:"hidden"}}>
-            <div style={{height:"100%",width:`${b.pct}%`,background:b.col,borderRadius:2}}/>
+        { label: "Electricity", pct: 68, col: "var(--g500)" },
+        { label: "Devices", pct: 19, col: "var(--g600)" },
+        { label: "Cloud", pct: 13, col: "#2E5A8A" },
+      ].map(b => (
+        <div key={b.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "rgba(255,255,255,.4)", width: 70 }}>{b.label}</div>
+          <div style={{ flex: 1, height: 16, background: "rgba(255,255,255,.06)", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${b.pct}%`, background: b.col, borderRadius: 2 }} />
           </div>
-          <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,.5)",width:32}}>{b.pct}%</div>
+          <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "rgba(255,255,255,.5)", width: 32 }}>{b.pct}%</div>
         </div>
       ))}
-      <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,.3)",marginTop:4}}>
+      <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "rgba(255,255,255,.3)", marginTop: 4 }}>
         Intensity: 1.97 tCO2e / Rs Cr · Top quartile
       </div>
     </div>
   );
 
   const AiPreview = () => (
-    <div className="journey-preview-content" style={{gap:10}}>
+    <div className="journey-preview-content" style={{ gap: 10 }}>
       <div className="jp-rec">
         <div className="jp-rec-title">Switch to renewable energy tariff</div>
         <div className="jp-rec-text">Reduce electricity emissions by up to 40%. Your biggest single action.</div>
@@ -1403,7 +1536,7 @@ function JourneySection({ onStart }) {
         <div className="jp-rec-title">Replace desktops with laptops</div>
         <div className="jp-rec-text">Desktops use 3x more power. Swap on next refresh for 20 to 30% device savings.</div>
       </div>
-      <div style={{borderTop:"1px solid rgba(255,255,255,.08)",paddingTop:10,display:"flex",flexDirection:"column",gap:8}}>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,.08)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
         <div className="jp-ai-bubble">Your top priority is electricity. Switching to a green energy tariff could save around 12 tCO2e per year and reduce costs.</div>
         <div className="jp-user-bubble">What about our servers?</div>
       </div>
@@ -1418,31 +1551,31 @@ function JourneySection({ onStart }) {
       </div>
       <div className="journey-layout">
         <div className="journey-steps">
-          {steps.map((s,i) => (
-            <div key={i} className={`journey-step${active===i?" active":""}`} onClick={()=>handleStepClick(i)}>
-              {active===i && <div className="journey-step-bar"/>}
+          {steps.map((s, i) => (
+            <div key={i} className={`journey-step${active === i ? " active" : ""}`} onClick={() => handleStepClick(i)}>
+              {active === i && <div className="journey-step-bar" />}
               <div className="journey-step-num">{s.num}</div>
               <div className="journey-step-title">{s.title}</div>
               <div className="journey-step-sub">{s.sub}</div>
             </div>
           ))}
-          <div style={{marginTop:36}}>
-            <button className="btn-hero" style={{background:"var(--g600)"}} onClick={onStart}>Begin Assessment →</button>
+          <div style={{ marginTop: 36 }}>
+            <button className="btn-hero" style={{ background: "var(--g600)" }} onClick={onStart}>Begin Assessment →</button>
           </div>
         </div>
         <div className="journey-preview">
           <div className="journey-preview-bar">
-            <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"rgba(255,255,255,.25)",letterSpacing:".08em"}}>
+            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "rgba(255,255,255,.25)", letterSpacing: ".08em" }}>
               {steps[active].num} — {steps[active].title}
             </div>
           </div>
-          {active===0 && <InputPreview/>}
-          {active===1 && <OutputPreview/>}
-          {active===2 && <AiPreview/>}
+          {active === 0 && <InputPreview />}
+          {active === 1 && <OutputPreview />}
+          {active === 2 && <AiPreview />}
           <div className="jp-timer">
-            {steps.map((_,i)=>(
+            {steps.map((_, i) => (
               <div key={i} className="jp-timer-dot">
-                <div className="jp-timer-fill" style={{width: active===i ? `${progress}%` : active>i ? "100%" : "0%"}}/>
+                <div className="jp-timer-fill" style={{ width: active === i ? `${progress}%` : active > i ? "100%" : "0%" }} />
               </div>
             ))}
           </div>
@@ -1498,13 +1631,13 @@ function HeroSection({ onStart, onLearnMore }) {
 
   return (
     <section className="hero">
-      <div className="hero-bg-grid"/>
-      <div className="hero-bg-glow"/>
+      <div className="hero-bg-grid" />
+      <div className="hero-bg-glow" />
       <div className="hero-inner">
         {/* Left: text */}
         <div>
           <h1 className="hero-title fade-up">
-            Measure<br/>Optimize<br/>Decarbonize
+            Measure<br />Optimize<br />Decarbonize
           </h1>
           <p className="hero-motto-sub fade-up2">
             A carbon footprint platform built for IT and technology organizations. Understand your emissions, benchmark against your sector, and take targeted action.
@@ -1517,14 +1650,14 @@ function HeroSection({ onStart, onLearnMore }) {
 
         {/* Right: slideshow — no browser chrome */}
         <div className="fade-up2">
-          <div className="hero-slideshow" style={{borderRadius:"12px"}}>
+          <div className="hero-slideshow" style={{ borderRadius: "12px" }}>
             <div className="hero-slide-progress">
-              <div className="hero-slide-progress-fill" style={{width:`${progress}%`}}/>
+              <div className="hero-slide-progress-fill" style={{ width: `${progress}%` }} />
             </div>
             {SLIDES.map((s, i) => (
               <div key={i} className={`hero-slide${slide === i ? " active" : ""}`}>
-                <img src={s.url} alt={s.caption} loading="lazy"/>
-                <div className="hero-slide-overlay"/>
+                <img src={s.url} alt={s.caption} loading="lazy" />
+                <div className="hero-slide-overlay" />
                 {slide === i && (
                   <div className="hero-slide-caption">{s.caption}</div>
                 )}
@@ -1532,7 +1665,7 @@ function HeroSection({ onStart, onLearnMore }) {
             ))}
             <div className="hero-slide-dots">
               {SLIDES.map((_, i) => (
-                <div key={i} className={`hero-slide-dot${slide === i ? " active" : ""}`} onClick={() => goTo(i)}/>
+                <div key={i} className={`hero-slide-dot${slide === i ? " active" : ""}`} onClick={() => goTo(i)} />
               ))}
             </div>
           </div>
@@ -1544,891 +1677,1381 @@ function HeroSection({ onStart, onLearnMore }) {
 
 /* ── STEP FORM DATA ──────────────────────────────────────────────────────────── */
 const INIT_FORM = {
-  company:"", state:"default", industry:"IT/ITES", employees:50, revenue:10, hours:8,
-  diesel:0, petrol:0, natgas:0, lpg:0,
-  elec:5000, renewable:0,
-  racks:0, srvhrs:24, srvtype:"hot_aisle_cold_aisle", servers:0,
-  laptops:0, desktops:0, monitors:0,
-  cloud:"none", cloudbill:0, services:0,
+  company: "", state: "default", industry: "IT/ITES", employees: 50, revenue: 10, hours: 8,
+  diesel: 0, petrol: 0, natgas: 0, lpg: 0,
+  elec: 5000, renewable: 0,
+  racks: 0, srvhrs: 24, srvtype: "hot_aisle_cold_aisle", servers: 0,
+  laptops: 0, desktops: 0, monitors: 0,
+  cloud: "none", cloudbill: 0, services: 0,
 };
 
 /* ── MAIN APP ─────────────────────────────────────────────────────────────── */
 export default function App() {
-  const [page, setPage]       = useState("home");
-  const [step, setStep]       = useState(0);
-  const [form, setForm]       = useState(INIT_FORM);
-  const [result, setResult]   = useState(null);
-  const [fList, setFList]     = useState([]);
-  const [msgs, setMsgs]       = useState([{role:"ai",text:KB.greet}]);
+  const [page, setPage] = useState("home");
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState(INIT_FORM);
+  const [result, setResult] = useState(null);
+  const [fList, setFList] = useState([]);
+  const [apiMessage, setApiMessage] = useState(null);
+  const [msgs, setMsgs] = useState([{ role: "ai", text: KB.greet }]);
   const [chatInput, setChatInput] = useState("");
-  const [typing, setTyping]   = useState(false);
+  const [typing, setTyping] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
-  const [inputMode, setInputMode]     = useState("upload");
-  const [excelFile, setExcelFile]     = useState(null);
-  const [excelDrag, setExcelDrag]     = useState(false);
-  const [uploadedDocs, setUploadedDocs] = useState({electricity:null, hardware:null, cloud:null, fuel:null});
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [mlData, setMlData] = useState(null);
+  const [personalization, setPersonalization] = useState(null);
+  const [learningStatus, setLearningStatus] = useState(null);
+  const [user, setUser] = useState(() => getStoredUser());
+
+  const [inputMode, setInputMode] = useState("upload");
+  const [excelFile, setExcelFile] = useState(null);
+  const [excelDrag, setExcelDrag] = useState(false);
+  const [uploadedDocs, setUploadedDocs] = useState({ electricity: null, hardware: null, cloud: null, fuel: null });
+  const [processingDocs, setProcessingDocs] = useState({ electricity: false, hardware: false, cloud: false, fuel: false, template: false });
+  const [extractedData, setExtractedData] = useState({ electricity: null, hardware: null, cloud: null, fuel: null });
+  const [sectionVerified, setSectionVerified] = useState({ electricity: null, hardware: null, cloud: null, fuel: null }); // null, 'yes', 'no'
   const excelInputRef = useRef(null);
   const chatRef = useRef(null);
-  const topRef  = useRef(null);
+  const topRef = useRef(null);
 
-  useEffect(()=>{
-    const onScroll=()=>setScrolled(window.scrollY>30);
-    window.addEventListener("scroll",onScroll);
-    return()=>window.removeEventListener("scroll",onScroll);
-  },[]);
+  useEffect(() => {
+    setUser(getStoredUser());
+  }, []);
 
-  useEffect(()=>{ window.scrollTo(0,0); },[page]);
+  /* ── INTERNAL COMPONENTS ────────────────────────────────────────────────── */
+  const VerificationBlock = ({ docKey, title, fields }) => {
+    const doc = uploadedDocs[docKey];
+    const data = extractedData[docKey];
+    if (!doc || !data) return null;
 
-  useEffect(()=>{ chatRef.current?.scrollIntoView({behavior:"smooth"}); },[msgs,typing]);
+    const isImg = doc.type.startsWith("image/");
+    const previewUrl = isImg ? URL.createObjectURL(doc) : null;
 
-  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
-  const num=(k)=>(e)=>set(k,parseFloat(e.target.value)||0);
-  const str=(k)=>(e)=>set(k,e.target.value);
+    return (
+      <div className="verify-block fade-up">
+        <div className="verify-preview">
+          {isImg ? <img src={previewUrl} alt="Document Preview" /> : <div className="verify-preview-icon">📄</div>}
+          <div className="verify-preview-label">{doc.name}</div>
+        </div>
+        <div className="verify-content">
+          <div className="verify-title">Document Reference: {title}</div>
+          <div className="verify-question" style={{ border: "none", paddingTop: 0 }}>
+            Does the provided document contain all the required information for this section?
+            <div className="verify-actions">
+              <button
+                className={`btn-verify ${sectionVerified[docKey] === 'yes' ? 'active' : ''}`}
+                onClick={() => setSectionVerified(p => ({ ...p, [docKey]: 'yes' }))}
+              >
+                Yes — Document is complete
+              </button>
+              <button
+                className={`btn-verify ${sectionVerified[docKey] === 'no' ? 'active' : ''}`}
+                onClick={() => setSectionVerified(p => ({ ...p, [docKey]: 'no' }))}
+              >
+                No — I need to add missing values
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
-  const doCalc=()=>{
-    const r=calc(form);
-    const f=findings(r,form);
-    setResult(r); setFList(f);
+  const MLInsightsCard = ({ data }) => {
+    if (!data || !data.ml_available) return null;
+    return (
+      <div className="res-card fade-up" style={{ borderTop: "4px solid var(--g500)", marginBottom: 28, background: "linear-gradient(135deg, #fff 0%, #f0faf7 100%)" }}>
+        <div className="res-card-header" style={{ background: "transparent", borderBottom: "1px solid rgba(45,168,136,.1)" }}>
+          <div className="res-card-title" style={{ color: "var(--g600)", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16 }}>✨</span> ML-Powered Emission Archetype
+          </div>
+        </div>
+        <div className="res-card-body" style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 24, fontWeight: 500, color: "var(--ink)", marginBottom: 8 }}>
+              {data.ml_cluster_description}
+            </div>
+            <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>
+              The ML model identified this emission pattern with <strong>{data.ml_confidence}% confidence</strong>.
+              Priority Score: <strong>{data.ml_priority_score}/10</strong>.
+            </div>
+            {data.ml_primary_message && (
+              <div style={{ marginTop: 14, padding: "14px 16px", background: "rgba(45,168,136,.08)", border: "1px solid rgba(45,168,136,.14)", borderRadius: 4 }}>
+                <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--g500)", marginBottom: 6 }}>Top ML Recommendation</div>
+                <div style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.6 }}>{data.ml_primary_message}</div>
+              </div>
+            )}
+          </div>
+          <div style={{ width: 100, textAlign: "center" }}>
+            <div style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--g500)", marginBottom: 4, textTransform: "uppercase" }}>Confidence</div>
+            <div style={{ fontSize: 28, fontFamily: "Cormorant Garamond, serif", color: "var(--g600)" }}>{data.ml_confidence}%</div>
+            <div style={{ height: 4, background: "var(--g100)", borderRadius: 99, marginTop: 4, overflow: "hidden" }}>
+              <div style={{ width: `${data.ml_confidence}%`, height: "100%", background: "var(--g500)" }} />
+            </div>
+          </div>
+        </div>
+          {data.ml_top3_recommendations?.length > 0 && (
+            <div>
+              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>Top 3 ML Suggestions</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+                {data.ml_top3_recommendations.map((rec, idx) => (
+                  <div key={`${rec.recommendation}-${idx}`} style={{ padding: "14px 14px 12px", border: "1px solid rgba(45,168,136,.12)", borderRadius: 4, background: "#fff" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--g500)", textTransform: "uppercase" }}>Rank {idx + 1}</div>
+                      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--muted)" }}>{rec.confidence}%</div>
+                    </div>
+                    <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.5 }}>{rec.message}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 30);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => { window.scrollTo(0, 0); }, [page]);
+
+  useEffect(() => { chatRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing]);
+
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const num = (k) => (e) => set(k, parseFloat(e.target.value) || 0);
+  const str = (k) => (e) => set(k, e.target.value);
+
+  const buildPayload = (sourceForm) => ({
+    company_name: sourceForm.company,
+    industry_type: sourceForm.industry,
+    location_state: sourceForm.state,
+    num_employees: parseInt(sourceForm.employees),
+    working_hours_per_day: parseFloat(sourceForm.hours),
+    annual_revenue_inr_cr: parseFloat(sourceForm.revenue),
+    diesel_litres_per_month: parseFloat(sourceForm.diesel),
+    petrol_litres_per_month: parseFloat(sourceForm.petrol),
+    natural_gas_m3_per_month: parseFloat(sourceForm.natgas),
+    lpg_litres_per_month: parseFloat(sourceForm.lpg),
+    electricity_kwh_per_month: parseFloat(sourceForm.elec),
+    renewable_energy_percent: parseFloat(sourceForm.renewable),
+    server_rack_count: parseInt(sourceForm.racks),
+    server_operating_hours_per_day: parseFloat(sourceForm.srvhrs),
+    server_arrangement: sourceForm.srvtype,
+    num_laptops: parseInt(sourceForm.laptops),
+    num_desktops: parseInt(sourceForm.desktops),
+    num_servers_onprem: parseInt(sourceForm.servers),
+    num_monitors: parseInt(sourceForm.monitors),
+    cloud_provider: sourceForm.cloud,
+    cloud_monthly_bill_inr: parseFloat(sourceForm.cloudbill),
+    purchased_services_spend_inr_per_month: parseFloat(sourceForm.services)
+  });
+
+  const getBackendIssue = (data) => {
+    const issues = [...(data.errors || []), ...(data.warnings || [])].filter(Boolean);
+    if (!issues.length) return "The backend rejected this submission. Please review the required inputs and try again.";
+    return issues.join(" ");
+  };
+
+  const applyAssessmentResult = (data, formCombined, formExtracted, formManual) => {
+    const rExt = calc(formExtracted);
+    const rMan = calc(formManual);
+    const monthly = {
+      s1: data.emissions.monthly.scope1_tco2e,
+      s2: data.emissions.monthly.scope2_tco2e,
+      s3: data.emissions.monthly.scope3_tco2e,
+      tot: data.emissions.monthly.total_tco2e,
+    };
+    const annual = {
+      s1: data.emissions.annual.scope1_tco2e,
+      s2: data.emissions.annual.scope2_tco2e,
+      s3: data.emissions.annual.scope3_tco2e,
+      tot: data.emissions.annual.total_tco2e,
+    };
+    const band = BANDS.find(b => data.intensity.revenue_intensity_tco2e_per_cr >= b.min && data.intensity.revenue_intensity_tco2e_per_cr < b.max) || BANDS[3];
+    const bdown = {
+      Diesel: data.emissions.scope1.diesel_tco2e,
+      Petrol: data.emissions.scope1.petrol_tco2e,
+      "Natural Gas": data.emissions.scope1.natural_gas_tco2e,
+      LPG: data.emissions.scope1.lpg_tco2e,
+      Electricity: data.emissions.scope2.total_tco2e,
+      Cloud: data.emissions.scope3.cloud.tco2e,
+      Services: data.emissions.scope3.services.tco2e,
+      Devices: data.emissions.scope3.devices.total_monthly_tco2e,
+    };
+
+    setResult({
+      combined: {
+        tot: monthly.tot,
+        ann: annual.tot,
+        s1: monthly.s1,
+        s2: monthly.s2,
+        s3: monthly.s3,
+        intensity: data.intensity.revenue_intensity_tco2e_per_cr,
+        band,
+        bdown,
+      },
+      extracted: rExt,
+      manual: rMan,
+      s1: monthly.s1,
+      s2: monthly.s2,
+      s3: monthly.s3,
+      tot: monthly.tot,
+      ann: annual.tot,
+      intensity: data.intensity.revenue_intensity_tco2e_per_cr,
+      monthly,
+      annual,
+      band,
+      bdown,
+    });
+
+    if (data.ml && data.ml.ml_available) {
+      setMlData(data.ml);
+      if (data.personalization) setPersonalization(data.personalization);
+      setFList(data.ml.ml_enhanced_findings.map(f => ({
+        sev: f.severity,
+        scope: f.scope || (f.source === "ML" ? "AI Suggestion" : "Rule"),
+        cat: f.category,
+        msg: f.message,
+        rec: f.recommendation || f.message,
+        source: f.source,
+        confidence: f.confidence
+      })));
+    } else {
+      setMlData(null);
+      setFList(findings(calc(formCombined), formCombined));
+    }
+
+    setApiMessage(null);
     setPage("results");
   };
 
-  const goCalculator=()=>{
+  const doCalc = async () => {
+    setIsCalculating(true);
+    setApiMessage(null);
+    // Prepare 3 sets of data for the trifold result
+    const formExtracted = { ...INIT_FORM };
+    const formManual = { ...INIT_FORM };
+    const formCombined = { ...form };
+
+    // 1. Combine Doc Data + Manual Addition Data for formCombined
+    Object.keys(extractedData).forEach(key => {
+      if (!extractedData[key]) return;
+      const data = extractedData[key];
+      const mapping = {
+        electricity: { electricity_kwh_per_month: "elec", location_state: "state" },
+        fuel: { diesel_litres_per_month: "diesel", petrol_litres_per_month: "petrol" },
+        cloud: { cloud_provider: "cloud", cloud_monthly_bill_inr: "cloudbill" },
+        hardware: { num_laptops: "laptops", num_desktops: "desktops", num_servers_onprem: "servers", num_monitors: "monitors" }
+      };
+
+      const m = mapping[key];
+      Object.entries(m).forEach(([exKey, formKey]) => {
+        if (data[exKey] !== undefined) {
+          formExtracted[formKey] = data[exKey];
+          if (sectionVerified[key] === 'yes') {
+            formCombined[formKey] = data[exKey];
+            formManual[formKey] = 0;
+          } else {
+            formCombined[formKey] = (parseFloat(data[exKey]) || 0) + (parseFloat(form[formKey]) || 0);
+            formManual[formKey] = form[formKey];
+          }
+        }
+      });
+    });
+
+    Object.keys(INIT_FORM).forEach(k => {
+      if (!formExtracted[k]) formManual[k] = form[k];
+    });
+
+    // Call Backend API for ML-powered results
+    try {
+      const payload = buildPayload(formCombined);
+
+      const resp = await fetch(`${API_BASE}/api/run`, {
+        method: "POST",
+        headers: authJsonHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+
+      if (data.ok) {
+        applyAssessmentResult(data, formCombined, formExtracted, formManual);
+        fetch(`${API_BASE}/api/user/learning-status`)
+          .then(r => r.json())
+          .then(d => setLearningStatus(d))
+          .catch(() => {});
+      } else {
+        setMlData(null);
+        setApiMessage(getBackendIssue(data));
+      }
+    } catch (err) {
+      console.error("API calculation failed:", err);
+      // Fallback to local calculation
+      const rComp = calc(formCombined);
+      const rExt = calc(formExtracted);
+      const rMan = calc(formManual);
+      setMlData(null);
+      setApiMessage("The backend assessment was unavailable, so the dashboard is showing the local rule-based estimate only.");
+      setResult({ combined: rComp, extracted: rExt, manual: rMan, ...rComp });
+      setFList(findings(rComp, formCombined));
+      setPage("results");
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+
+  const goCalculator = () => {
+    setApiMessage(null);
     setInputMode("upload");
     setExcelFile(null);
-    setUploadedDocs({electricity:null,hardware:null,cloud:null,fuel:null});
+    setUploadedDocs({ electricity: null, hardware: null, cloud: null, fuel: null });
     setStep(0);
     setPage("calculator");
   };
 
-  const handleDocUpload=(key,e)=>{
-    const file=e.target.files[0];
-    if(file) setUploadedDocs(p=>({...p,[key]:file}));
+  const handleDocUpload = async (key, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadedDocs(p => ({ ...p, [key]: file }));
+    setProcessingDocs(p => ({ ...p, [key]: true }));
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("doc_type", key);
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/upload-doc`, {
+        method: "POST",
+        body: fd
+      });
+      const data = await resp.json();
+
+      if (data.ok && data.data) {
+        setExtractedData(prev => ({ ...prev, [key]: data.data }));
+        // Note: We no longer auto-fill the 'form' state directly here.
+        // The user will verify the document in the respective manual section.
+      }
+    } catch (err) {
+      console.error("Document extraction failed:", err);
+    } finally {
+      setProcessingDocs(p => ({ ...p, [key]: false }));
+    }
   };
 
-  const handleProcessExcel = () => {
+  const handleProcessExcel = async () => {
     if (!excelFile) return;
-    setInputMode("manual");
+
+    setProcessingDocs(p => ({ ...p, template: true }));
+    setApiMessage(null);
+    const fd = new FormData();
+    fd.append("file", excelFile);
+    fd.append("doc_type", "template");
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/upload-doc`, {
+        method: "POST",
+        body: fd
+      });
+      const data = await resp.json();
+
+      if (data.ok && data.data) {
+        const raw = data.data;
+        const newForm = {
+          company: raw.company_name || "",
+          state: raw.location_state || "default",
+          industry: raw.industry_type || "IT/ITES",
+          employees: raw.num_employees || 0,
+          revenue: raw.annual_revenue_inr_cr || 0,
+          hours: raw.working_hours_per_day || 8,
+          diesel: raw.diesel_litres_per_month || 0,
+          petrol: raw.petrol_litres_per_month || 0,
+          natgas: raw.natural_gas_m3_per_month || 0,
+          lpg: raw.lpg_litres_per_month || 0,
+          elec: raw.electricity_kwh_per_month || 0,
+          renewable: raw.renewable_energy_percent || 0,
+          racks: raw.server_rack_count || 0,
+          srvhrs: raw.server_operating_hours_per_day || 24,
+          srvtype: raw.server_arrangement || "default",
+          servers: raw.num_servers_onprem || 0,
+          laptops: raw.num_laptops || 0,
+          desktops: raw.num_desktops || 0,
+          monitors: raw.num_monitors || 0,
+          cloud: raw.cloud_provider || "none",
+          cloudbill: raw.cloud_monthly_bill_inr || 0,
+          services: raw.purchased_services_spend_inr_per_month || 0,
+        };
+
+        setForm(newForm);
+        const runResp = await fetch(`${API_BASE}/api/run`, {
+          method: "POST",
+          headers: authJsonHeaders(),
+          body: JSON.stringify(buildPayload(newForm))
+        });
+        const runData = await runResp.json();
+
+        if (runData.ok) {
+          applyAssessmentResult(runData, newForm, newForm, INIT_FORM);
+        } else {
+          setMlData(null);
+          setInputMode("manual");
+          setStep(0);
+          setApiMessage(getBackendIssue(runData));
+        }
+      } else {
+        setInputMode("manual");
+      }
+    } catch (err) {
+      console.error("Master template processing failed:", err);
+      setMlData(null);
+      setApiMessage("The template was parsed, but the backend assessment could not be completed. You can continue from the manual form.");
+      setInputMode("manual");
+    } finally {
+      setProcessingDocs(p => ({ ...p, template: false }));
+    }
   };
 
-  const sendChat=()=>{
-    if(!chatInput.trim())return;
-    const t=chatInput.trim();
-    setMsgs(p=>[...p,{role:"user",text:t}]);
+  const sendChat = () => {
+    if (!chatInput.trim()) return;
+    const t = chatInput.trim();
+    setMsgs(p => [...p, { role: "user", text: t }]);
     setChatInput(""); setTyping(true);
-    setTimeout(()=>{ setMsgs(p=>[...p,{role:"ai",text:aiReply(t)}]); setTyping(false); },700+Math.random()*700);
+    setTimeout(() => { setMsgs(p => [...p, { role: "ai", text: aiReply(t) }]); setTyping(false); }, 700 + Math.random() * 700);
   };
 
-  const STEPS=["Company Profile","Fuel & Generators","Electricity & Devices","Cloud & Services"];
+  const STEPS = ["Company Profile", "Fuel & Generators", "Electricity & Devices", "Cloud & Services"];
 
   /* ── HOME PAGE ───────────────────────────────────────────────────────────── */
   if (page === "home") {
     return (
-    <>
-      <style>{GLOBAL_CSS}</style>
+      <>
+        <style>{GLOBAL_CSS}</style>
 
-      {showSignup && <SignUpModal onClose={()=>setShowSignup(false)}/>}
+        {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
 
-      {/* NAV */}
-      <nav className={`nav-bar${scrolled?" scrolled":""}`}>
-        <div className="nav-logo" onClick={()=>setPage("home")}>
-          <div className="nav-hex"><span>C</span></div>
-          Carbonaire
-        </div>
-        <div className="nav-links">
-          <button className="nav-link" onClick={()=>document.getElementById("mission")?.scrollIntoView({behavior:"smooth"})}>Our Mission</button>
-          <button className="nav-link" onClick={()=>document.getElementById("about")?.scrollIntoView({behavior:"smooth"})}>About</button>
-          <button className="nav-link" onClick={()=>document.getElementById("journey")?.scrollIntoView({behavior:"smooth"})}>How It Works</button>
-          <button className="nav-link" onClick={()=>document.getElementById("what-we-do")?.scrollIntoView({behavior:"smooth"})}>What We Do</button>
-          <button className="nav-signup" onClick={()=>setShowSignup(true)}>Sign Up</button>
-          <button className="nav-cta" onClick={goCalculator}>Start Calculating</button>
-        </div>
-      </nav>
+        {/* NAV */}
+        <nav className={`nav-bar${scrolled ? " scrolled" : ""}`}>
+          <div className="nav-logo" onClick={() => setPage("home")}>
+            <div className="nav-hex"><span>C</span></div>
+            Carbonaire
+          </div>
+          <div className="nav-links">
+            <button className="nav-link" onClick={() => document.getElementById("mission")?.scrollIntoView({ behavior: "smooth" })}>Our Mission</button>
+            <button className="nav-link" onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })}>About</button>
+            <button className="nav-link" onClick={() => document.getElementById("journey")?.scrollIntoView({ behavior: "smooth" })}>How It Works</button>
+            <button className="nav-link" onClick={() => document.getElementById("what-we-do")?.scrollIntoView({ behavior: "smooth" })}>What We Do</button>
+            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+            <button className="nav-cta" onClick={goCalculator}>Start Calculating</button>
+          </div>
+        </nav>
 
-      {/* HERO */}
-      <HeroSection onStart={goCalculator} onLearnMore={()=>document.getElementById("about")?.scrollIntoView({behavior:"smooth"})}/>
+        {/* HERO */}
+        <HeroSection onStart={goCalculator} onLearnMore={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })} />
 
-      {/* ABOUT */}
-      <section id="about" className="section-pad" style={{background:"var(--white)"}}>
-        <div className="about-grid">
-          <div>
-            <div className="section-tag">About Us</div>
-            <h2 className="section-title" style={{fontSize:"clamp(34px, 4vw, 56px)"}}>
-              Carbonaire simplifies carbon accounting for technology organizations.
-            </h2>
-            <p className="section-body mt16">
-              Many carbon management platforms are built for large enterprises with dedicated sustainability teams. Carbonaire focuses on providing a practical and accessible solution for organizations that want to understand and reduce their environmental impact without requiring specialized expertise.
+        {/* ABOUT */}
+        <section id="about" className="section-pad" style={{ background: "var(--white)" }}>
+          <div className="about-grid">
+            <div>
+              <div className="section-tag">About Us</div>
+              <h2 className="section-title" style={{ fontSize: "clamp(34px, 4vw, 56px)" }}>
+                Carbonaire simplifies carbon accounting for technology organizations.
+              </h2>
+              <p className="section-body mt16">
+                Many carbon management platforms are built for large enterprises with dedicated sustainability teams. Carbonaire focuses on providing a practical and accessible solution for organizations that want to understand and reduce their environmental impact without requiring specialized expertise.
+              </p>
+              <p className="section-body mt16">
+                By entering operational data, clients receive a clear assessment of their carbon footprint. The platform analyzes the results, benchmarks performance against relevant industry metrics, and provides prioritized recommendations that help organizations identify the most effective actions for reducing emissions.
+              </p>
+
+              {/* Redesigned professional feature cards */}
+              <div className="about-pillars">
+                {[
+                  { tag: "Methodology", title: "Accurate Calculation", text: "Location-adjusted electricity emission factors, real device power consumption, and cloud spend estimation are all built into the platform." },
+                  { tag: "Performance", title: "Sector Benchmarking", text: "Compare your emission intensity against the Indian IT industry average to understand where your organization stands." },
+                  { tag: "Action", title: "Prioritised Recommendations", text: "Receive specific, ranked actions based on your emission profile, ordered by the highest potential impact for your organization." },
+                  { tag: "Advisory", title: "AI-Powered Guidance", text: "Engage with an AI assistant to explore emission sources, reduction pathways, and data-driven strategies for your specific context." },
+                ].map(p => (
+                  <div key={p.title} className="pillar">
+                    <div className="pillar-indicator">{p.tag}</div>
+                    <div className="pillar-title">{p.title}</div>
+                    <div className="pillar-text">{p.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="about-visual">
+              <div className="about-circles">
+                <div className="acirc" style={{ width: 360, height: 360, borderColor: "rgba(94,160,94,.08)" }} />
+                <div className="acirc" style={{ width: 270, height: 270, borderColor: "rgba(94,160,94,.13)" }} />
+                <div className="acirc" style={{ width: 180, height: 180, borderColor: "rgba(94,160,94,.20)" }} />
+                <div className="acirc" style={{ width: 90, height: 90, borderColor: "rgba(94,160,94,.32)", background: "rgba(94,160,94,.06)" }} />
+              </div>
+              <div className="about-center-text">
+                <div className="about-center-num">3.1</div>
+                <div className="about-center-sub">tCO2e / Rs Crore<br />Indian IT Sector Average</div>
+              </div>
+              <div style={{ position: "absolute", top: 40, left: 32, background: "var(--white)", border: "1px solid var(--line)", borderRadius: 4, padding: "8px 12px", boxShadow: "var(--sh)" }}>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 2 }}>Direct</div>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 13, color: "var(--g700)" }}>Fuel & Generators</div>
+              </div>
+              <div style={{ position: "absolute", top: 40, right: 32, background: "var(--white)", border: "1px solid var(--line)", borderRadius: 4, padding: "8px 12px", boxShadow: "var(--sh)" }}>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 2 }}>Electricity</div>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 13, color: "var(--g700)" }}>Devices & Servers</div>
+              </div>
+              <div style={{ position: "absolute", bottom: 40, left: "50%", transform: "translateX(-50%)", background: "var(--white)", border: "1px solid var(--line)", borderRadius: 4, padding: "8px 12px", boxShadow: "var(--sh)" }}>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 2 }}>Indirect</div>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 13, color: "var(--g700)" }}>Cloud & Services</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* MISSION SECTION */}
+        <section id="mission" className="mission-section">
+          <div className="mission-inner">
+            <div className="mission-tag">Our Mission</div>
+            <h2 className="mission-headline">Making carbon accountability accessible and practical for technology organizations</h2>
+            <p className="mission-body">
+              Our mission is to make carbon accountability accessible and practical for technology organizations. As digital infrastructure continues to expand, so does the environmental impact associated with it. Many carbon management solutions are expensive, complex, or designed primarily for large enterprises. Carbonaire was created to provide a clear and practical alternative. We aim to give organizations the ability to measure their carbon footprint with confidence and to act on it with informed, data-driven decisions that lead to meaningful emission reductions.
             </p>
-            <p className="section-body mt16">
-              By entering operational data, clients receive a clear assessment of their carbon footprint. The platform analyzes the results, benchmarks performance against relevant industry metrics, and provides prioritized recommendations that help organizations identify the most effective actions for reducing emissions.
-            </p>
+            <div className="mission-pillars">
+              <div className="mission-pillar">
+                <div className="mission-pillar-num">01 — Input</div>
+                <div className="mission-pillar-title">Understand what you use</div>
+                <div className="mission-pillar-text">Capture your actual energy, fuel, device, and cloud usage data in under five minutes. No specialist knowledge needed.</div>
+              </div>
+              <div className="mission-pillar">
+                <div className="mission-pillar-num">02 — Output</div>
+                <div className="mission-pillar-title">See where you stand</div>
+                <div className="mission-pillar-text">Get a precise emissions breakdown and benchmark your performance against the Indian IT sector average instantly.</div>
+              </div>
+              <div className="mission-pillar">
+                <div className="mission-pillar-num">03 — Action</div>
+                <div className="mission-pillar-title">Know exactly what to do</div>
+                <div className="mission-pillar-text">Receive prioritised recommendations and AI-powered guidance tailored to your specific emission profile.</div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-            {/* Redesigned professional feature cards */}
-            <div className="about-pillars">
+        {/* JOURNEY section */}
+        <JourneySection onStart={() => setPage("calculator")} />
+
+        {/* WHAT WE DO */}
+        <section id="what-we-do" className="section-pad" style={{ background: "var(--g50)" }}>
+          <div className="section-tag">What We Do</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 80 }}>
+            <div style={{ flex: 1 }}>
+              <h2 className="section-title">Built around three things that matter</h2>
+              <p className="section-body mt16">
+                We don't overwhelm you with reports or jargon. Carbonaire is focused on three outputs that actually help your business act.
+              </p>
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20, paddingTop: 8 }}>
               {[
-                {tag:"Methodology", title:"Accurate Calculation", text:"Location-adjusted electricity emission factors, real device power consumption, and cloud spend estimation are all built into the platform."},
-                {tag:"Performance", title:"Sector Benchmarking", text:"Compare your emission intensity against the Indian IT industry average to understand where your organization stands."},
-                {tag:"Action", title:"Prioritised Recommendations", text:"Receive specific, ranked actions based on your emission profile, ordered by the highest potential impact for your organization."},
-                {tag:"Advisory", title:"AI-Powered Guidance", text:"Engage with an AI assistant to explore emission sources, reduction pathways, and data-driven strategies for your specific context."},
-              ].map(p=>(
-                <div key={p.title} className="pillar">
-                  <div className="pillar-indicator">{p.tag}</div>
-                  <div className="pillar-title">{p.title}</div>
-                  <div className="pillar-text">{p.text}</div>
+                { num: "01", title: "Your Carbon Footprint", text: "A precise monthly and annual breakdown of your emissions by source: electricity, fuel, cloud, and devices. You know exactly where the number comes from." },
+                { num: "02", title: "Benchmark Comparison", text: "Your emission intensity (tCO2e per Rs Crore revenue) plotted against the Indian IT industry average. You will see whether you are above, below, or in the top quartile." },
+                { num: "03", title: "Personalised Recommendations", text: "Actions ranked by impact, tailored to your specific emission profile. Not generic advice but specific things your organisation can do to cut emissions and costs." },
+              ].map(w => (
+                <div key={w.num} style={{ display: "flex", gap: 20, paddingBottom: 20, borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, color: "var(--g500)", fontWeight: 500, flexShrink: 0, paddingTop: 3 }}>{w.num}</div>
+                  <div>
+                    <div style={{ fontFamily: "Syne,sans-serif", fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>{w.title}</div>
+                    <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.65 }}>{w.text}</div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="about-visual">
-            <div className="about-circles">
-              <div className="acirc" style={{width:360,height:360,borderColor:"rgba(94,160,94,.08)"}}/>
-              <div className="acirc" style={{width:270,height:270,borderColor:"rgba(94,160,94,.13)"}}/>
-              <div className="acirc" style={{width:180,height:180,borderColor:"rgba(94,160,94,.20)"}}/>
-              <div className="acirc" style={{width:90,height:90,borderColor:"rgba(94,160,94,.32)",background:"rgba(94,160,94,.06)"}}/>
-            </div>
-            <div className="about-center-text">
-              <div className="about-center-num">3.1</div>
-              <div className="about-center-sub">tCO2e / Rs Crore<br/>Indian IT Sector Average</div>
-            </div>
-            <div style={{position:"absolute",top:40,left:32,background:"var(--white)",border:"1px solid var(--line)",borderRadius:4,padding:"8px 12px",boxShadow:"var(--sh)"}}>
-              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:2}}>Direct</div>
-              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:13,color:"var(--g700)"}}>Fuel & Generators</div>
-            </div>
-            <div style={{position:"absolute",top:40,right:32,background:"var(--white)",border:"1px solid var(--line)",borderRadius:4,padding:"8px 12px",boxShadow:"var(--sh)"}}>
-              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:2}}>Electricity</div>
-              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:13,color:"var(--g700)"}}>Devices & Servers</div>
-            </div>
-            <div style={{position:"absolute",bottom:40,left:"50%",transform:"translateX(-50%)",background:"var(--white)",border:"1px solid var(--line)",borderRadius:4,padding:"8px 12px",boxShadow:"var(--sh)"}}>
-              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:2}}>Indirect</div>
-              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:13,color:"var(--g700)"}}>Cloud & Services</div>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* MISSION SECTION */}
-      <section id="mission" className="mission-section">
-        <div className="mission-inner">
-          <div className="mission-tag">Our Mission</div>
-          <h2 className="mission-headline">Making carbon accountability accessible and practical for technology organizations</h2>
-          <p className="mission-body">
-            Our mission is to make carbon accountability accessible and practical for technology organizations. As digital infrastructure continues to expand, so does the environmental impact associated with it. Many carbon management solutions are expensive, complex, or designed primarily for large enterprises. Carbonaire was created to provide a clear and practical alternative. We aim to give organizations the ability to measure their carbon footprint with confidence and to act on it with informed, data-driven decisions that lead to meaningful emission reductions.
-          </p>
-          <div className="mission-pillars">
-            <div className="mission-pillar">
-              <div className="mission-pillar-num">01 — Input</div>
-              <div className="mission-pillar-title">Understand what you use</div>
-              <div className="mission-pillar-text">Capture your actual energy, fuel, device, and cloud usage data in under five minutes. No specialist knowledge needed.</div>
+        {/* CTA BANNER */}
+        <section style={{ background: "var(--g700)", padding: "80px" }}>
+          <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
+            <h2 style={{ fontFamily: "Cormorant Garamond,serif", fontSize: "clamp(32px,4vw,52px)", fontWeight: 300, color: "#fff", lineHeight: 1.1, marginBottom: 36, letterSpacing: "-.02em" }}>
+              Ready to see your carbon footprint?
+            </h2>
+            <button className="btn-hero" onClick={goCalculator}>Start Your Assessment</button>
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer className="footer">
+          <div className="footer-grid">
+            <div className="footer-brand">
+              <div className="footer-logo">Carbonaire</div>
+              <div className="footer-tagline">Carbon footprint assessment for IT and technology organizations.</div>
             </div>
-            <div className="mission-pillar">
-              <div className="mission-pillar-num">02 — Output</div>
-              <div className="mission-pillar-title">See where you stand</div>
-              <div className="mission-pillar-text">Get a precise emissions breakdown and benchmark your performance against the Indian IT sector average instantly.</div>
+            <div>
+              <div className="footer-col-title">Platform</div>
+              <div className="footer-link" onClick={goCalculator}>Calculator</div>
+              <div className="footer-link" onClick={() => setPage("ai")}>AI Assistant</div>
             </div>
-            <div className="mission-pillar">
-              <div className="mission-pillar-num">03 — Action</div>
-              <div className="mission-pillar-title">Know exactly what to do</div>
-              <div className="mission-pillar-text">Receive prioritised recommendations and AI-powered guidance tailored to your specific emission profile.</div>
+            <div>
+              <div className="footer-col-title">Company</div>
+              <div className="footer-link" onClick={() => document.getElementById("mission")?.scrollIntoView({ behavior: "smooth" })}>Our Mission</div>
+              <div className="footer-link" onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })}>About</div>
+              <div className="footer-link" onClick={() => document.getElementById("journey")?.scrollIntoView({ behavior: "smooth" })}>How It Works</div>
+              <div className="footer-link" onClick={() => document.getElementById("what-we-do")?.scrollIntoView({ behavior: "smooth" })}>What We Do</div>
+            </div>
+            <div>
+              <div className="footer-col-title">Emissions</div>
+              <div className="footer-link">Direct (Fuel)</div>
+              <div className="footer-link">Electricity</div>
+              <div className="footer-link">Cloud & Services</div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* JOURNEY section */}
-      <JourneySection onStart={()=>setPage("calculator")} />
-
-      {/* WHAT WE DO */}
-      <section id="what-we-do" className="section-pad" style={{background:"var(--g50)"}}>
-        <div className="section-tag">What We Do</div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:80}}>
-          <div style={{flex:1}}>
-            <h2 className="section-title">Built around three things that matter</h2>
-            <p className="section-body mt16">
-              We don't overwhelm you with reports or jargon. Carbonaire is focused on three outputs that actually help your business act.
-            </p>
+          <div className="footer-bottom">
+            <div className="footer-copy">© 2025 Carbonaire · Carbon footprint assessment for IT and technology organizations.</div>
+            <div className="footer-sources">
+              <div className="footer-source-title">Data Sources</div>
+              <div className="footer-source-item">CEA Grid Emission Factors (Central Electricity Authority, India)</div>
+              <div className="footer-source-item">GHG Protocol Corporate Standard (World Resources Institute)</div>
+              <div className="footer-source-item">IPCC Emission Factor Database (AR6)</div>
+              <div className="footer-source-item">MoEFCC National Inventory Reports (Government of India)</div>
+              <div className="footer-source-item">IEA World Energy Outlook Electricity Data</div>
+            </div>
           </div>
-          <div style={{flex:1,display:"flex",flexDirection:"column",gap:20,paddingTop:8}}>
-            {[
-              {num:"01",title:"Your Carbon Footprint",text:"A precise monthly and annual breakdown of your emissions by source: electricity, fuel, cloud, and devices. You know exactly where the number comes from."},
-              {num:"02",title:"Benchmark Comparison",text:"Your emission intensity (tCO2e per Rs Crore revenue) plotted against the Indian IT industry average. You will see whether you are above, below, or in the top quartile."},
-              {num:"03",title:"Personalised Recommendations",text:"Actions ranked by impact, tailored to your specific emission profile. Not generic advice but specific things your organisation can do to cut emissions and costs."},
-            ].map(w=>(
-              <div key={w.num} style={{display:"flex",gap:20,paddingBottom:20,borderBottom:"1px solid var(--line)"}}>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,color:"var(--g500)",fontWeight:500,flexShrink:0,paddingTop:3}}>{w.num}</div>
-                <div>
-                  <div style={{fontFamily:"Syne,sans-serif",fontSize:15,fontWeight:600,color:"var(--ink)",marginBottom:6}}>{w.title}</div>
-                  <div style={{fontSize:14,color:"var(--muted)",lineHeight:1.65}}>{w.text}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA BANNER */}
-      <section style={{background:"var(--g700)",padding:"80px"}}>
-        <div style={{maxWidth:640,margin:"0 auto",textAlign:"center"}}>
-          <h2 style={{fontFamily:"Cormorant Garamond,serif",fontSize:"clamp(32px,4vw,52px)",fontWeight:300,color:"#fff",lineHeight:1.1,marginBottom:36,letterSpacing:"-.02em"}}>
-            Ready to see your carbon footprint?
-          </h2>
-          <button className="btn-hero" onClick={goCalculator}>Start Your Assessment</button>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="footer">
-        <div className="footer-grid">
-          <div className="footer-brand">
-            <div className="footer-logo">Carbonaire</div>
-            <div className="footer-tagline">Carbon footprint assessment for IT and technology organizations.</div>
-          </div>
-          <div>
-            <div className="footer-col-title">Platform</div>
-            <div className="footer-link" onClick={goCalculator}>Calculator</div>
-            <div className="footer-link" onClick={()=>setPage("ai")}>AI Assistant</div>
-          </div>
-          <div>
-            <div className="footer-col-title">Company</div>
-            <div className="footer-link" onClick={()=>document.getElementById("mission")?.scrollIntoView({behavior:"smooth"})}>Our Mission</div>
-            <div className="footer-link" onClick={()=>document.getElementById("about")?.scrollIntoView({behavior:"smooth"})}>About</div>
-            <div className="footer-link" onClick={()=>document.getElementById("journey")?.scrollIntoView({behavior:"smooth"})}>How It Works</div>
-            <div className="footer-link" onClick={()=>document.getElementById("what-we-do")?.scrollIntoView({behavior:"smooth"})}>What We Do</div>
-          </div>
-          <div>
-            <div className="footer-col-title">Emissions</div>
-            <div className="footer-link">Direct (Fuel)</div>
-            <div className="footer-link">Electricity</div>
-            <div className="footer-link">Cloud & Services</div>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <div className="footer-copy">© 2025 Carbonaire · Carbon footprint assessment for IT and technology organizations.</div>
-          <div className="footer-sources">
-            <div className="footer-source-title">Data Sources</div>
-            <div className="footer-source-item">CEA Grid Emission Factors (Central Electricity Authority, India)</div>
-            <div className="footer-source-item">GHG Protocol Corporate Standard (World Resources Institute)</div>
-            <div className="footer-source-item">IPCC Emission Factor Database (AR6)</div>
-            <div className="footer-source-item">MoEFCC National Inventory Reports (Government of India)</div>
-            <div className="footer-source-item">IEA World Energy Outlook Electricity Data</div>
-          </div>
-        </div>
-      </footer>
-    </>
-  );
+        </footer>
+      </>
+    );
   }
 
   /* ── CALCULATOR PAGE ─────────────────────────────────────────────────────── */
   if (page === "calculator") {
     return (
-    <div>
-      <style>{GLOBAL_CSS}</style>
-      <nav className="nav-bar scrolled">
-        <div className="nav-logo" onClick={()=>setPage("home")}>
-          <div className="nav-hex"><span>C</span></div>
-          Carbonaire
-        </div>
-        <div className="nav-links">
-          <button className="nav-link" onClick={()=>setPage("home")}>Back to Home</button>
-          {result&&<button className="nav-link" onClick={()=>setPage("results")}>View Results</button>}
-          <button className="nav-signup" onClick={()=>setShowSignup(true)}>Sign Up</button>
-        </div>
-      </nav>
-      {showSignup && <SignUpModal onClose={()=>setShowSignup(false)}/>}
-
-      <div className="calc-page">
-        <div className="calc-header">
-          <div className="calc-header-inner">
-            <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".16em",textTransform:"uppercase",color:"var(--g300)",marginBottom:12}}>Carbon Footprint Assessment</div>
-            {inputMode==="upload"
-              ? <><div className="calc-title">Upload your documents</div><div className="calc-sub">Upload an Excel template or supporting documents to auto-fill your data, or skip to enter everything manually.</div></>
-              : <><div className="calc-title">Let's calculate your footprint</div><div className="calc-sub">Work through each section. Most fields take under a minute. Enter zero for anything that doesn't apply to your company.</div></>
-            }
-          </div>
-        </div>
-
-        {/* DOCUMENT UPLOAD SCREEN */}
-        {inputMode==="upload" && (
-          <div className="upload-screen fade-up">
-            <div className="upload-hero-card">
-              <div className="upload-badge">Step 0 of 4 · Document Upload</div>
-              <div className="upload-hero-title">Start with your existing data</div>
-              <div className="upload-hero-sub">
-                Upload our Excel template pre-filled with your company data for the fastest experience, or attach individual supporting documents (electricity bills, cloud invoices, fuel records) to improve accuracy and traceability. You can skip this step entirely and enter everything manually.
-              </div>
-            </div>
-
-            <div className="upload-card">
-              <div className="upload-card-header">
-                <div className="upload-card-icon" style={{background:"#EAF5F0",border:"1px solid var(--g200)"}}>📊</div>
-                <div>
-                  <div className="upload-card-title">Excel Input Template <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"var(--g500)",marginLeft:8,letterSpacing:".06em"}}>RECOMMENDED</span></div>
-                  <div className="upload-card-desc">Fill in our official template and upload it here. All fields will be auto-populated instantly.</div>
-                </div>
-              </div>
-              <div className="upload-card-body">
-                <div className="template-note">
-                  <div className="template-note-title">Use the Carbonaire Input Template</div>
-                  <div className="template-note-text">
-                    Your Excel file must follow the <strong>Carbonaire Input Template</strong> format exactly, with columns for <code style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,background:"var(--g100)",padding:"1px 5px",borderRadius:2}}>company_name</code>, <code style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,background:"var(--g100)",padding:"1px 5px",borderRadius:2}}>industry_type</code>, <code style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,background:"var(--g100)",padding:"1px 5px",borderRadius:2}}>location_state</code>, <code style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,background:"var(--g100)",padding:"1px 5px",borderRadius:2}}>num_employees</code>, <code style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,background:"var(--g100)",padding:"1px 5px",borderRadius:2}}>annual_revenue_inr_cr</code>, and all other required fields. Files in any other format will not be accepted.
-                  </div>
-                  <a href="/Carbonaire_Input_Template.xlsx" download style={{textDecoration:"none"}}>
-                    <button className="template-download-btn">Download Template (.xlsx)</button>
-                  </a>
-                </div>
-
-                <input type="file" accept=".xlsx,.xls" ref={excelInputRef} style={{display:"none"}} onChange={e=>{ const f=e.target.files[0]; if(f) setExcelFile(f); }}/>
-                <div
-                  className={`upload-drop-zone${excelDrag?" drag-over":""}${excelFile?" has-file":""}`}
-                  onClick={()=>excelInputRef.current.click()}
-                  onDragOver={e=>{e.preventDefault();setExcelDrag(true);}}
-                  onDragLeave={()=>setExcelDrag(false)}
-                  onDrop={e=>{e.preventDefault();setExcelDrag(false);const f=e.dataTransfer.files[0];if(f&&(f.name.endsWith(".xlsx")||f.name.endsWith(".xls")))setExcelFile(f);}}
-                >
-                  <div className="upload-drop-icon">{excelFile?"✅":"📂"}</div>
-                  <div className="upload-drop-text">{excelFile?"Template uploaded":"Drop your filled Excel template here, or click to browse"}</div>
-                  <div className="upload-drop-sub">{excelFile?"":" .xlsx or .xls · Carbonaire template format only"}</div>
-                  {excelFile && (
-                    <div className="upload-file-chip">
-                      📄 {excelFile.name}
-                      <button className="upload-file-chip-remove" onClick={e=>{e.stopPropagation();setExcelFile(null);}}>✕</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="upload-card">
-              <div className="upload-card-header">
-                <div className="upload-card-icon" style={{background:"#F0F5FF",border:"1px solid #C5D8F0"}}>📎</div>
-                <div>
-                  <div className="upload-card-title">Supporting Documents <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"var(--muted)",marginLeft:8,letterSpacing:".06em"}}>(Important)</span></div>
-                  <div className="upload-card-desc">Attach invoices and bills to improve accuracy and provide audit traceability</div>
-                </div>
-              </div>
-              <div className="upload-card-body">
-                <div className="doc-upload-grid">
-                  {[
-                    {key:"electricity", icon:"⚡", label:"Electricity Bill", hint:"PDF or Excel · auto-fills location & kWh"},
-                    {key:"hardware",    icon:"🖥", label:"Hardware Invoice", hint:"IT equipment, servers, monitors"},
-                    {key:"cloud",       icon:"☁️", label:"Cloud Services Bill", hint:"AWS, Azure, GCP · auto-fills spend"},
-                    {key:"fuel",        icon:"⛽", label:"Fuel Purchase Record", hint:"Diesel, petrol, LPG receipts"},
-                  ].map(doc=>(
-                    <label key={doc.key} className={`doc-upload-row${uploadedDocs[doc.key]?" uploaded":""}`} style={{cursor:"pointer"}}>
-                      <input type="file" style={{display:"none"}} accept=".pdf,.xlsx,.xls,.csv,.png,.jpg" onChange={e=>handleDocUpload(doc.key,e)}/>
-                      <div className="doc-upload-row-icon">{doc.icon}</div>
-                      <div style={{flex:1}}>
-                        <div className="doc-upload-row-label">{doc.label}</div>
-                        <div className="doc-upload-row-status">
-                          {uploadedDocs[doc.key]
-                            ? <span style={{color:"var(--g600)",fontWeight:500}}>📄 {uploadedDocs[doc.key].name}</span>
-                            : <span style={{color:"var(--muted)"}}>{doc.hint}</span>
-                          }
-                        </div>
-                      </div>
-                      {uploadedDocs[doc.key] && <div className="doc-upload-row-check">✓</div>}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="upload-skip-bar">
-              <div className="upload-skip-text">
-                {Object.values(uploadedDocs).filter(Boolean).length > 0
-                  ? `${Object.values(uploadedDocs).filter(Boolean).length} supporting document(s) attached · you can still edit all fields manually`
-                  : "No documents? No problem. You can enter all data manually in the next steps."}
-              </div>
-              <div style={{display:"flex",gap:12,alignItems:"center"}}>
-                <button className="upload-manual-btn" onClick={()=>setInputMode("manual")}>
-                  Skip — Enter Manually
-                </button>
-                <button
-                  className="upload-proceed-btn"
-                  onClick={excelFile ? handleProcessExcel : () => setInputMode("manual")}
-                >
-                  {excelFile ? "Process & Continue →" : "Continue to Form →"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {inputMode==="manual" && (
-          <div className="progress-wrap">
-            <div className="progress-inner">
-              {STEPS.map((s,i)=>(
-                <div key={i} className={`prog-step${step===i?" active":i<step?" done":""}`} onClick={()=>i<=step&&setStep(i)}>
-                  <div className="prog-dot">{i<step?"✓":i+1}</div>
-                  <div className="prog-label">{s}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {inputMode==="manual" ? (
-        <div className="calc-body">
-
-          {step===0&&(
-            <div className="fade-up">
-              <div className="step-card">
-                <div className="step-card-header">
-                  <div className="step-card-num">1</div>
-                  <div>
-                    <div className="step-card-title">Company Profile</div>
-                    <div className="step-card-sub">Basic organisational information used for benchmarking and emission intensity calculation</div>
-                  </div>
-                </div>
-                <div className="step-card-body">
-                  <div className="fgrid fgrid-2 mb24">
-                    <div className="fl fg-span2">
-                      <label>Company Name</label>
-                      <input type="text" value={form.company} onChange={str("company")} placeholder="e.g. TechNova Solutions Pvt. Ltd."/>
-                    </div>
-                    <div className="fl">
-                      <label>State / Region</label>
-                      <select value={form.state} onChange={str("state")}>
-                        <option value="default">Select State</option>
-                        <option value="karnataka">Karnataka</option>
-                        <option value="maharashtra">Maharashtra</option>
-                        <option value="delhi">Delhi</option>
-                        <option value="gujarat">Gujarat</option>
-                        <option value="tamil_nadu">Tamil Nadu</option>
-                        <option value="default">Other / Default</option>
-                      </select>
-                    </div>
-                    <div className="fl">
-                      <label>Industry Type</label>
-                      <select value={form.industry} onChange={str("industry")}>
-                        <option value="IT/ITES">IT / ITES</option>
-                        <option value="Software">Software Development</option>
-                        <option value="BPO">BPO / Call Centre</option>
-                        <option value="Data Centre">Data Centre</option>
-                        <option value="Startup">Technology Startup</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="hr"/>
-                  <div className="fgrid fgrid-2">
-                    <div className="fl">
-                      <label>Number of Employees</label>
-                      <div className="unit-input"><input type="number" value={form.employees} onChange={num("employees")} min="1"/></div>
-                    </div>
-                    <div className="fl">
-                      <label>Annual Revenue</label>
-                      <div className="unit-input"><input type="number" value={form.revenue} onChange={num("revenue")} step=".1"/><span className="unit-tag">Rs Cr</span></div>
-                    </div>
-                    <div className="fl">
-                      <label>Working Hours per Day</label>
-                      <div className="unit-input"><input type="number" value={form.hours} onChange={num("hours")} step=".5" min="1" max="24"/><span className="unit-tag">hrs</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div style={{display:"flex",justifyContent:"flex-end"}}>
-                <button className="btn-next" onClick={()=>setStep(1)}>Next: Fuel & Generators →</button>
-              </div>
-            </div>
-          )}
-
-          {step===1&&(
-            <div className="fade-up">
-              <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:4,padding:"16px 20px",marginBottom:20,borderLeft:"4px solid #C05A2C"}}>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:"var(--warn)",marginBottom:4}}>On-Site Fuel Use</div>
-                <div style={{fontSize:14,color:"var(--muted)"}}>Tell us about fuel burned at your premises: generators, vehicles, and gas. Most IT companies have very little here. Enter zero for anything that doesn't apply.</div>
-              </div>
-              <div className="step-card">
-                <div className="step-card-header">
-                  <div className="step-card-num" style={{background:"#C05A2C"}}>2</div>
-                  <div>
-                    <div className="step-card-title">On-Site Fuel & Combustion</div>
-                    <div className="step-card-sub">Generator fuel, company vehicles, kitchen gas: any fuel burned at your premises or in company-owned vehicles</div>
-                  </div>
-                </div>
-                <div className="step-card-body">
-                  <div className="fgrid">
-                    <div className="fl">
-                      <label>Diesel Consumption</label>
-                      <div className="unit-input"><input type="number" value={form.diesel} onChange={num("diesel")} min="0"/><span className="unit-tag">L/mo</span></div>
-                    </div>
-                    <div className="fl">
-                      <label>Petrol Consumption</label>
-                      <div className="unit-input"><input type="number" value={form.petrol} onChange={num("petrol")} min="0"/><span className="unit-tag">L/mo</span></div>
-                    </div>
-                    <div className="fl">
-                      <label>Natural Gas</label>
-                      <div className="unit-input"><input type="number" value={form.natgas} onChange={num("natgas")} min="0"/><span className="unit-tag">m³/mo</span></div>
-                    </div>
-                    <div className="fl">
-                      <label>LPG (Cylinders / Kitchen)</label>
-                      <div className="unit-input"><input type="number" value={form.lpg} onChange={num("lpg")} min="0"/><span className="unit-tag">L/mo</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between"}}>
-                <button className="btn-back" onClick={()=>setStep(0)}>Back</button>
-                <button className="btn-next" onClick={()=>setStep(2)}>Next: Electricity & Devices →</button>
-              </div>
-            </div>
-          )}
-
-          {step===2&&(
-            <div className="fade-up">
-              <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:4,padding:"16px 20px",marginBottom:20,borderLeft:"4px solid var(--g500)"}}>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:"var(--g600)",marginBottom:4}}>Electricity & Devices</div>
-                <div style={{fontSize:14,color:"var(--muted)"}}>Electricity is typically the biggest part of an IT company's carbon footprint. Enter your monthly usage and we'll handle the rest.</div>
-              </div>
-              <div className="step-card">
-                <div className="step-card-header">
-                  <div className="step-card-num">3</div>
-                  <div>
-                    <div className="step-card-title">Electricity Consumption</div>
-                    <div className="step-card-sub">Your total monthly electricity consumption and how much of it comes from renewable sources</div>
-                  </div>
-                </div>
-                <div className="step-card-body">
-                  <div className="fgrid fgrid-2">
-                    <div className="fl">
-                      <label>Monthly Electricity Consumption</label>
-                      <div className="unit-input"><input type="number" value={form.elec} onChange={num("elec")} min="0"/><span className="unit-tag">kWh</span></div>
-                    </div>
-                    <div className="fl">
-                      <label>Renewable Energy Share (%)</label>
-                      <div className="unit-input"><input type="number" value={form.renewable} onChange={num("renewable")} min="0" max="100"/><span className="unit-tag">%</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="step-card" style={{marginTop:16}}>
-                <div className="step-card-header">
-                  <div className="step-card-num">3b</div>
-                  <div>
-                    <div className="step-card-title">IT Device Fleet</div>
-                    <div className="step-card-sub">On-site devices consuming electricity, powered by your organisation's purchased electricity</div>
-                  </div>
-                </div>
-                <div className="step-card-body">
-                  <div className="fgrid fgrid-4">
-                    <div className="fl">
-                      <label>Laptops</label>
-                      <input type="number" value={form.laptops} onChange={num("laptops")} min="0"/>
-                    </div>
-                    <div className="fl">
-                      <label>Desktops</label>
-                      <input type="number" value={form.desktops} onChange={num("desktops")} min="0"/>
-                    </div>
-                    <div className="fl">
-                      <label>Monitors</label>
-                      <input type="number" value={form.monitors} onChange={num("monitors")} min="0"/>
-                    </div>
-                    <div className="fl">
-                      <label>On-Premise Servers</label>
-                      <input type="number" value={form.servers} onChange={num("servers")} min="0"/>
-                    </div>
-                  </div>
-                  <div className="hr"/>
-                  <div className="fgrid fgrid-2">
-                    <div className="fl">
-                      <label>Server Racks</label>
-                      <input type="number" value={form.racks} onChange={num("racks")} min="0"/>
-                    </div>
-                    <div className="fl">
-                      <label>Server Operating Hours / Day</label>
-                      <div className="unit-input"><input type="number" value={form.srvhrs} onChange={num("srvhrs")} min="0" max="24"/><span className="unit-tag">hrs</span></div>
-                    </div>
-                    <div className="fl fg-span2">
-                      <label>Server Room Arrangement</label>
-                      <select value={form.srvtype} onChange={str("srvtype")}>
-                        <option value="hot_aisle_cold_aisle">Hot/Cold Aisle Containment</option>
-                        <option value="stacked_high_density">Stacked High Density</option>
-                        <option value="direct_liquid_cooling">Direct Liquid Cooling</option>
-                        <option value="custom">Custom / Unknown</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
-                <button className="btn-back" onClick={()=>setStep(1)}>Back</button>
-                <button className="btn-next" onClick={()=>setStep(3)}>Next: Cloud & Services →</button>
-              </div>
-            </div>
-          )}
-
-          {step===3&&(
-            <div className="fade-up">
-              <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:4,padding:"16px 20px",marginBottom:20,borderLeft:"4px solid var(--blue)"}}>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:"var(--blue)",marginBottom:4}}>Cloud & Purchased Services</div>
-                <div style={{fontSize:14,color:"var(--muted)"}}>Emissions from your cloud infrastructure and outsourced services. We estimate this from your provider and monthly spend.</div>
-              </div>
-              <div className="step-card">
-                <div className="step-card-header">
-                  <div className="step-card-num" style={{background:"var(--blue)"}}>4</div>
-                  <div>
-                    <div className="step-card-title">Cloud Computing</div>
-                    <div className="step-card-sub">Emissions from cloud infrastructure are estimated from your provider and monthly spend</div>
-                  </div>
-                </div>
-                <div className="step-card-body">
-                  <div className="fgrid fgrid-2">
-                    <div className="fl">
-                      <label>Cloud Provider</label>
-                      <select value={form.cloud} onChange={str("cloud")}>
-                        <option value="none">None — On-Premise Only</option>
-                        <option value="aws">Amazon Web Services (AWS)</option>
-                        <option value="azure">Microsoft Azure</option>
-                        <option value="gcp">Google Cloud Platform (lowest carbon)</option>
-                      </select>
-                    </div>
-                    <div className="fl">
-                      <label>Monthly Cloud Spend</label>
-                      <div className="unit-input"><input type="number" value={form.cloudbill} onChange={num("cloudbill")} min="0"/><span className="unit-tag">Rs</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="step-card" style={{marginTop:16}}>
-                <div className="step-card-header">
-                  <div className="step-card-num" style={{background:"var(--blue)"}}>4b</div>
-                  <div>
-                    <div className="step-card-title">Purchased Services</div>
-                    <div className="step-card-sub">SaaS subscriptions, outsourced work, professional services. Estimated from your monthly spend.</div>
-                  </div>
-                </div>
-                <div className="step-card-body">
-                  <div className="fgrid fgrid-2">
-                    <div className="fl">
-                      <label>Total Purchased Services Spend</label>
-                      <div className="unit-input"><input type="number" value={form.services} onChange={num("services")} min="0"/><span className="unit-tag">Rs/mo</span></div>
-                    </div>
-                  </div>
-                  <div style={{marginTop:16,padding:"12px 16px",background:"var(--g50)",borderRadius:4,border:"1px solid var(--g100)"}}>
-                    <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"var(--muted)"}}>We estimate emissions from purchased services based on spend volume.</div>
-                  </div>
-                </div>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
-                <button className="btn-back" onClick={()=>setStep(2)}>Back</button>
-                <button className="btn-calculate" onClick={doCalc}>Compute Footprint & View Results →</button>
-              </div>
-            </div>
-          )}
-
-        </div>
-        ) : null}
-      </div>
-    </div>
-  );
-  }
-
-  /* ── RESULTS PAGE ────────────────────────────────────────────────────────── */
-  if(page==="results"&&result) {
-    const { s1,s2,s3,tot,ann,intensity,band,bdown,monthly,annual }=result;
-    const fndgs=fList;
-    const donutData=[
-      {label:"Scope 1 — Direct",value:s1,color:"#C05A2C"},
-      {label:"Scope 2 — Electricity",value:s2,color:"#228F72"},
-      {label:"Scope 3 — Indirect",value:s3,color:"#2E5A8A"},
-    ];
-    const srcSorted=Object.entries(bdown).filter(([,v])=>v>0.00005).sort(([,a],[,b])=>b-a);
-    const maxSrc=srcSorted[0]?.[1]||1;
-
-    const bmTotal = BENCHMARK * (form.revenue || 1);
-    const bm = { s1: bmTotal*0.05, s2: bmTotal*0.65, s3: bmTotal*0.30, tot: bmTotal };
-
-    const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const lineYou=months.map((_,i)=>tot*(i+1));
-    const lineBm=months.map((_,i)=>(bm.tot/12)*(i+1));
-    const lineMax=Math.max(...lineYou,...lineBm,0.01);
-
-    const srcColors={
-      Diesel:"#C05A2C",Petrol:"#E07840",
-      "Natural Gas":"#D4944A",LPG:"#F0B860",
-      Electricity:"#228F72",Laptops:"#4EBFA0",Desktops:"#2DA888",Monitors:"#80D4B4",Servers:"#1A7059",
-      Cloud:"#2E5A2A",Services:"#5080B8",
-    };
-
-    function LineChart({you,bench,max,w=520,h=140}){
-      const pad={t:12,r:12,b:28,l:44};
-      const gw=w-pad.l-pad.r; const gh=h-pad.t-pad.b;
-      const px=(i)=>pad.l+i/(you.length-1)*gw;
-      const py=(v)=>pad.t+gh-(v/max)*gh;
-      const toPath=arr=>arr.map((v,i)=>`${i===0?"M":"L"}${px(i)},${py(v)}`).join(" ");
-      const toArea=arr=>`${toPath(arr)} L${px(arr.length-1)},${pad.t+gh} L${px(0)},${pad.t+gh} Z`;
-      return(
-        <svg viewBox={`0 0 ${w} ${h}`} style={{width:"100%",height:h,display:"block"}}>
-          <defs>
-            <linearGradient id="gyou" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#228F72" stopOpacity=".25"/>
-              <stop offset="100%" stopColor="#228F72" stopOpacity="0"/>
-            </linearGradient>
-            <linearGradient id="gbm" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#B08020" stopOpacity=".15"/>
-              <stop offset="100%" stopColor="#B08020" stopOpacity="0"/>
-            </linearGradient>
-          </defs>
-          {[0,.25,.5,.75,1].map(f=>{
-            const y=pad.t+gh*(1-f);
-            return <g key={f}>
-              <line x1={pad.l} y1={y} x2={w-pad.r} y2={y} stroke="var(--line)" strokeWidth={.8}/>
-              <text x={pad.l-6} y={y+4} textAnchor="end" fontSize={8} fontFamily="JetBrains Mono,monospace" fill="var(--muted)">{(max*f).toFixed(1)}</text>
-            </g>;
-          })}
-          {you.map((_,i)=><text key={i} x={px(i)} y={h-4} textAnchor="middle" fontSize={8} fontFamily="JetBrains Mono,monospace" fill="var(--muted)">{months[i]}</text>)}
-          <path d={toArea(bench)} fill="url(#gbm)"/>
-          <path d={toPath(bench)} fill="none" stroke="#B08020" strokeWidth={1.5} strokeDasharray="4 3"/>
-          <path d={toArea(you)} fill="url(#gyou)"/>
-          <path d={toPath(you)} fill="none" stroke="#228F72" strokeWidth={2.5}/>
-          <circle cx={px(you.length-1)} cy={py(you[you.length-1])} r={4} fill="#228F72" stroke="#fff" strokeWidth={1.5}/>
-          <circle cx={px(bench.length-1)} cy={py(bench[bench.length-1])} r={4} fill="#B08020" stroke="#fff" strokeWidth={1.5}/>
-        </svg>
-      );
-    }
-
-    function ScopeGroupedBar({yours,bench,labels,colors,benchColor="#B08020"}){
-      const W=480; const H=180;
-      const pad={t:10,r:12,b:32,l:44};
-      const gw=W-pad.l-pad.r; const gh=H-pad.t-pad.b;
-      const allVals=[...yours,...bench];
-      const maxV=Math.max(...allVals,0.01);
-      const n=yours.length;
-      const groupW=gw/n;
-      const barW=groupW*.32;
-      const gap=groupW*.06;
-      return(
-        <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:H,display:"block"}}>
-          {[0,.25,.5,.75,1].map(f=>{
-            const y=pad.t+gh*(1-f);
-            return <g key={f}>
-              <line x1={pad.l} y1={y} x2={W-pad.r} y2={y} stroke="var(--line)" strokeWidth={.8}/>
-              <text x={pad.l-6} y={y+4} textAnchor="end" fontSize={8} fontFamily="JetBrains Mono,monospace" fill="var(--muted)">{(maxV*f).toFixed(1)}</text>
-            </g>;
-          })}
-          {yours.map((v,i)=>{
-            const bv=bench[i];
-            const gx=pad.l+i*groupW+groupW/2;
-            const bh=(v/maxV)*gh; const bbh=(bv/maxV)*gh;
-            const by_=pad.t+gh-bh; const bby=pad.t+gh-bbh;
-            return <g key={i}>
-              <rect x={gx-barW-gap/2} y={bby} width={barW} height={bbh} fill={`${benchColor}40`} rx={2}/>
-              <text x={gx-barW/2-gap/2} y={bby-4} textAnchor="middle" fontSize={7.5} fontFamily="JetBrains Mono,monospace" fill={benchColor}>{bv.toFixed(1)}</text>
-              <rect x={gx+gap/2} y={by_} width={barW} height={bh} fill={colors[i]} rx={2}/>
-              <text x={gx+barW/2+gap/2} y={by_-4} textAnchor="middle" fontSize={7.5} fontFamily="JetBrains Mono,monospace" fill={colors[i]}>{v.toFixed(1)}</text>
-              <text x={gx} y={H-4} textAnchor="middle" fontSize={9} fontFamily="Syne,sans-serif" fontWeight={600} fill="var(--ink2)">{labels[i]}</text>
-            </g>;
-          })}
-        </svg>
-      );
-    }
-
-    return(
-      <>
+      <div>
         <style>{GLOBAL_CSS}</style>
         <nav className="nav-bar scrolled">
-          <div className="nav-logo" onClick={()=>setPage("home")}>
+          <div className="nav-logo" onClick={() => setPage("home")}>
             <div className="nav-hex"><span>C</span></div>
             Carbonaire
           </div>
           <div className="nav-links">
-            <button className="nav-link" onClick={()=>{setStep(0);setPage("calculator")}}>Recalculate</button>
-            <button className="nav-link" onClick={()=>setPage("home")}>Home</button>
-            <button className="nav-signup" onClick={()=>setShowSignup(true)}>Sign Up</button>
-            <button className="nav-cta" onClick={()=>setPage("ai")}>AI Advisor</button>
+            <button className="nav-link" onClick={() => setPage("home")}>Back to Home</button>
+            {result && <button className="nav-link" onClick={() => setPage("results")}>View Results</button>}
+            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
           </div>
         </nav>
-        {showSignup && <SignUpModal onClose={()=>setShowSignup(false)}/>}
+        {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
+
+        <div className="calc-page">
+          <div className="calc-header">
+            <div className="calc-header-inner">
+              <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--g300)", marginBottom: 12 }}>Carbon Footprint Assessment</div>
+              {inputMode === "upload"
+                ? <><div className="calc-title">Upload your documents</div><div className="calc-sub">Upload an Excel template or supporting documents to auto-fill your data, or skip to enter everything manually.</div></>
+                : <><div className="calc-title">Let's calculate your footprint</div><div className="calc-sub">Work through each section. Most fields take under a minute. Enter zero for anything that doesn't apply to your company.</div></>
+              }
+            </div>
+          </div>
+
+          {/* DOCUMENT UPLOAD SCREEN */}
+          {inputMode === "upload" && (
+            <div className="upload-screen fade-up">
+              <div className="upload-hero-card">
+                <div className="upload-badge">Module 0 of 4 · Documentation Intake</div>
+                <div className="upload-hero-title">Data Source Submission</div>
+                <div className="upload-hero-sub">
+                  To optimize accuracy and minimize manual data entry, please provide the relevant operational documents below. The system will extract the required metrics for your verification in the subsequent steps.
+                  <br /><br />
+                  {Object.values(uploadedDocs).filter(Boolean).length > 0
+                    ? `Assessing ${Object.values(uploadedDocs).filter(Boolean).length} documents. Please provide any remaining records for Fuel, Hardware, or Cloud to ensure a complete automated assessment.`
+                    : "No documents provided yet. Submit supporting records to enable automated processing."
+                  }
+                </div>
+              </div>
+
+              <div className="upload-card">
+                <div className="upload-card-header">
+                  <div className="upload-card-icon" style={{ background: "#EAF5F0", border: "1px solid var(--g200)" }}>📊</div>
+                  <div>
+                    <div className="upload-card-title">Excel Input Template <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--g500)", marginLeft: 8, letterSpacing: ".06em" }}>RECOMMENDED</span></div>
+                    <div className="upload-card-desc">Fill in our official template and upload it here. All fields will be auto-populated instantly.</div>
+                  </div>
+                </div>
+                <div className="upload-card-body">
+                  <div className="template-note">
+                    <div className="template-note-title">Use the Carbonaire Input Template</div>
+                    <div className="template-note-text">
+                      Your Excel file must follow the <strong>Carbonaire Input Template</strong> format exactly, with columns for <code style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, background: "var(--g100)", padding: "1px 5px", borderRadius: 2 }}>company_name</code>, <code style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, background: "var(--g100)", padding: "1px 5px", borderRadius: 2 }}>industry_type</code>, <code style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, background: "var(--g100)", padding: "1px 5px", borderRadius: 2 }}>location_state</code>, <code style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, background: "var(--g100)", padding: "1px 5px", borderRadius: 2 }}>num_employees</code>, <code style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, background: "var(--g100)", padding: "1px 5px", borderRadius: 2 }}>annual_revenue_inr_cr</code>, and all other required fields. Files in any other format will not be accepted.
+                    </div>
+                    <a href="/Carbonaire_Input_Template.xlsx" download style={{ textDecoration: "none" }}>
+                      <button className="template-download-btn">Download Template (.xlsx)</button>
+                    </a>
+                  </div>
+
+                  <input type="file" accept=".xlsx,.xls" ref={excelInputRef} style={{ display: "none" }} onChange={e => { const f = e.target.files[0]; if (f) setExcelFile(f); }} />
+                  <div
+                    className={`upload-drop-zone${excelDrag ? " drag-over" : ""}${excelFile ? " has-file" : ""}`}
+                    onClick={() => excelInputRef.current.click()}
+                    onDragOver={e => { e.preventDefault(); setExcelDrag(true); }}
+                    onDragLeave={() => setExcelDrag(false)}
+                    onDrop={e => { e.preventDefault(); setExcelDrag(false); const f = e.dataTransfer.files[0]; if (f && (f.name.endsWith(".xlsx") || f.name.endsWith(".xls"))) setExcelFile(f); }}
+                  >
+                    <div className="upload-drop-icon">{processingDocs.template ? "⚡" : (excelFile ? "✅" : "📂")}</div>
+                    <div className="upload-drop-text">
+                      {processingDocs.template
+                        ? <span className="processing-shimmer">Processing all documents...</span>
+                        : (excelFile ? "Template uploaded" : "Drop your filled Excel template here, or click to browse")
+                      }
+                    </div>
+                    <div className="upload-drop-sub">{excelFile || processingDocs.template ? "" : " .xlsx or .xls · Carbonaire template format only"}</div>
+                    {excelFile && !processingDocs.template && (
+                      <div className="upload-file-chip">
+                        📄 {excelFile.name}
+                        <button className="upload-file-chip-remove" onClick={e => { e.stopPropagation(); setExcelFile(null); }}>✕</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="upload-card">
+                <div className="upload-card-header">
+                  <div className="upload-card-icon" style={{ background: "#F0F5FF", border: "1px solid #C5D8F0" }}>📎</div>
+                  <div>
+                    <div className="upload-card-title">Supporting Documents <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--muted)", marginLeft: 8, letterSpacing: ".06em" }}>(Important)</span></div>
+                    <div className="upload-card-desc">Attach invoices and bills to improve accuracy and provide audit traceability</div>
+                  </div>
+                </div>
+                <div className="upload-card-body">
+                  <div className="doc-upload-grid">
+                    {[
+                      { key: "electricity", icon: "⚡", label: "Electricity Bill", hint: "PDF or Excel · auto-fills location & kWh" },
+                      { key: "hardware", icon: "🖥", label: "Hardware Invoice", hint: "IT equipment, servers, monitors" },
+                      { key: "cloud", icon: "☁️", label: "Cloud Services Bill", hint: "AWS, Azure, GCP · auto-fills spend" },
+                      { key: "fuel", icon: "⛽", label: "Fuel Purchase Record", hint: "Diesel, petrol, LPG receipts" },
+                    ].map(doc => (
+                      <label key={doc.key} className={`doc-upload-row${uploadedDocs[doc.key] ? " uploaded" : ""}`} style={{ cursor: "pointer" }}>
+                        <input type="file" style={{ display: "none" }} accept=".pdf,.xlsx,.xls,.csv,.png,.jpg" onChange={e => handleDocUpload(doc.key, e)} />
+                        <div className="doc-upload-row-icon">{doc.icon}</div>
+                        <div style={{ flex: 1 }}>
+                          <div className="doc-upload-row-label">{doc.label}</div>
+                          <div className="doc-upload-row-status">
+                            {processingDocs[doc.key]
+                              ? <span className="processing-shimmer">⚡ Reading document...</span>
+                              : uploadedDocs[doc.key]
+                                ? <span style={{ color: "var(--g600)", fontWeight: 500 }}>📄 {uploadedDocs[doc.key].name}</span>
+                                : <span style={{ color: "var(--muted)" }}>{doc.hint}</span>
+                            }
+                          </div>
+                        </div>
+                        {uploadedDocs[doc.key] && <div className="doc-upload-row-check">✓</div>}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="upload-skip-bar">
+                <div className="upload-skip-text">
+                  {Object.values(uploadedDocs).filter(Boolean).length > 0
+                    ? `${Object.values(uploadedDocs).filter(Boolean).length} supporting document(s) attached · you can still edit all fields manually`
+                    : "No documents? No problem. You can enter all data manually in the next steps."}
+                </div>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <button className="upload-manual-btn" onClick={() => setInputMode("manual")}>
+                    Skip — Enter Manually
+                  </button>
+                  <button
+                    className="upload-proceed-btn"
+                    onClick={excelFile ? handleProcessExcel : () => setInputMode("manual")}
+                  >
+                    {excelFile ? "Process & Continue →" : "Continue to Form →"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {inputMode === "manual" && (
+            <div className="progress-wrap">
+              <div className="progress-inner">
+                {STEPS.map((s, i) => (
+                  <div key={i} className={`prog-step${step === i ? " active" : i < step ? " done" : ""}`} onClick={() => i <= step && setStep(i)}>
+                    <div className="prog-dot">{i < step ? "✓" : i + 1}</div>
+                    <div className="prog-label">{s}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {inputMode === "manual" ? (
+            <div className="calc-body">
+              {apiMessage && (
+                <div style={{ marginBottom: 20, background: "#FFF3E7", border: "1px solid rgba(192,90,44,.18)", borderLeft: "4px solid #C05A2C", borderRadius: 4, padding: "14px 16px", color: "#7A3E21", lineHeight: 1.6 }}>
+                  {apiMessage}
+                </div>
+              )}
+
+              {step === 0 && (
+                <div className="fade-up">
+                  <div className="step-card">
+                    <div className="step-card-header">
+                      <div className="step-card-num">1</div>
+                      <div>
+                        <div className="step-card-title">Company Profile</div>
+                        <div className="step-card-sub">Basic organisational information used for benchmarking and emission intensity calculation</div>
+                      </div>
+                    </div>
+                    <div className="step-card-body">
+                      <div className="fgrid fgrid-2 mb24">
+                        <div className="fl fg-span2">
+                          <label>Company Name</label>
+                          <input type="text" value={form.company} onChange={str("company")} placeholder="e.g. TechNova Solutions Pvt. Ltd." />
+                        </div>
+                        <div className="fl">
+                          <label>State / Region</label>
+                          <select value={form.state} onChange={str("state")}>
+                            <option value="default">Select State</option>
+                            <option value="karnataka">Karnataka</option>
+                            <option value="maharashtra">Maharashtra</option>
+                            <option value="delhi">Delhi</option>
+                            <option value="gujarat">Gujarat</option>
+                            <option value="tamil_nadu">Tamil Nadu</option>
+                            <option value="default">Other / Default</option>
+                          </select>
+                        </div>
+                        <div className="fl">
+                          <label>Industry Type</label>
+                          <select value={form.industry} onChange={str("industry")}>
+                            <option value="IT/ITES">IT / ITES</option>
+                            <option value="Software">Software Development</option>
+                            <option value="BPO">BPO / Call Centre</option>
+                            <option value="Data Centre">Data Centre</option>
+                            <option value="Startup">Technology Startup</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="hr" />
+                      <div className="fgrid fgrid-2">
+                        <div className="fl">
+                          <label>Number of Employees</label>
+                          <div className="unit-input"><input type="number" value={form.employees} onChange={num("employees")} min="1" /></div>
+                        </div>
+                        <div className="fl">
+                          <label>Annual Revenue</label>
+                          <div className="unit-input"><input type="number" value={form.revenue} onChange={num("revenue")} step=".1" /><span className="unit-tag">Rs Cr</span></div>
+                        </div>
+                        <div className="fl">
+                          <label>Working Hours per Day</label>
+                          <div className="unit-input"><input type="number" value={form.hours} onChange={num("hours")} step=".5" min="1" max="24" /><span className="unit-tag">hrs</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button className="btn-next" onClick={() => setStep(1)}>Next: Fuel & Generators →</button>
+                  </div>
+                </div>
+              )}
+
+              {step === 1 && (
+                <div className="fade-up">
+                  <div style={{ background: "var(--white)", border: "1px solid var(--line)", borderRadius: 4, padding: "16px 20px", marginBottom: 20, borderLeft: "4px solid #C05A2C" }}>
+                    <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--warn)", marginBottom: 4 }}>On-Site Fuel Use</div>
+                    <div style={{ fontSize: 14, color: "var(--muted)" }}>Tell us about fuel burned at your premises: generators, vehicles, and gas. Most IT companies have very little here. Enter zero for anything that doesn't apply.</div>
+                  </div>
+                  <div className="step-card">
+                    <div className="step-card-header">
+                      <div className="step-card-num" style={{ background: "#C05A2C" }}>2</div>
+                      <div>
+                        <div className="step-card-title">On-Site Fuel & Combustion</div>
+                        <div className="step-card-sub">Generator fuel, company vehicles, kitchen gas: any fuel burned at your premises or in company-owned vehicles</div>
+                      </div>
+                    </div>
+                    <div className="step-card-body">
+                      <VerificationBlock
+                        docKey="fuel"
+                        title="Fuel Records"
+                        fields={{ "Diesel (L)": "diesel_litres_per_month", "Petrol (L)": "petrol_litres_per_month" }}
+                      />
+                      {sectionVerified.fuel !== 'yes' && (
+                        <div className="fgrid">
+                          <div className="fl">
+                            <label>{uploadedDocs.fuel ? "Additional Diesel" : "Diesel Consumption"}</label>
+                            <div className="unit-input"><input type="number" value={form.diesel} onChange={num("diesel")} min="0" /><span className="unit-tag">L/mo</span></div>
+                          </div>
+                          <div className="fl">
+                            <label>{uploadedDocs.fuel ? "Additional Petrol" : "Petrol Consumption"}</label>
+                            <div className="unit-input"><input type="number" value={form.petrol} onChange={num("petrol")} min="0" /><span className="unit-tag">L/mo</span></div>
+                          </div>
+                          <div className="fl">
+                            <label>Natural Gas</label>
+                            <div className="unit-input"><input type="number" value={form.natgas} onChange={num("natgas")} min="0" /><span className="unit-tag">m³/mo</span></div>
+                          </div>
+                          <div className="fl">
+                            <label>LPG (Cylinders / Kitchen)</label>
+                            <div className="unit-input"><input type="number" value={form.lpg} onChange={num("lpg")} min="0" /><span className="unit-tag">L/mo</span></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <button className="btn-back" onClick={() => setStep(0)}>Back</button>
+                    <button className="btn-next" onClick={() => setStep(2)}>Next: Electricity & Devices →</button>
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="fade-up">
+                  <div style={{ background: "var(--white)", border: "1px solid var(--line)", borderRadius: 4, padding: "16px 20px", marginBottom: 20, borderLeft: "4px solid var(--g500)" }}>
+                    <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--g600)", marginBottom: 4 }}>Electricity & Devices</div>
+                    <div style={{ fontSize: 14, color: "var(--muted)" }}>Electricity is typically the biggest part of an IT company's carbon footprint. Enter your monthly usage and we'll handle the rest.</div>
+                  </div>
+                  <div className="step-card">
+                    <div className="step-card-header">
+                      <div className="step-card-num">3</div>
+                      <div>
+                        <div className="step-card-title">Electricity Consumption</div>
+                        <div className="step-card-sub">Your total monthly electricity consumption and how much of it comes from renewable sources</div>
+                      </div>
+                    </div>
+                    <div className="step-card-body">
+                      <VerificationBlock
+                        docKey="electricity"
+                        title="Electricity Invoice"
+                        fields={{ "Units (kWh)": "electricity_kwh_per_month", "Location": "location_state" }}
+                      />
+                      {sectionVerified.electricity !== 'yes' && (
+                        <div className="fgrid fgrid-2">
+                          <div className="fl">
+                            <label>{uploadedDocs.electricity ? "Additional kWh" : "Monthly Electricity Consumption"}</label>
+                            <div className="unit-input"><input type="number" value={form.elec} onChange={num("elec")} min="0" /><span className="unit-tag">kWh</span></div>
+                          </div>
+                          <div className="fl">
+                            <label>Renewable Energy Share (%)</label>
+                            <div className="unit-input"><input type="number" value={form.renewable} onChange={num("renewable")} min="0" max="100" /><span className="unit-tag">%</span></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="step-card" style={{ marginTop: 16 }}>
+                    <div className="step-card-header">
+                      <div className="step-card-num">3b</div>
+                      <div>
+                        <div className="step-card-title">IT Device Fleet</div>
+                        <div className="step-card-sub">On-site devices consuming electricity, powered by your organisation's purchased electricity</div>
+                      </div>
+                    </div>
+                    <div className="step-card-body">
+                      <VerificationBlock
+                        docKey="hardware"
+                        title="Hardware Invoice"
+                        fields={{ "Laptops": "num_laptops", "Desktops": "num_desktops", "Servers": "num_servers_onprem", "Monitors": "num_monitors" }}
+                      />
+                      {sectionVerified.hardware !== 'yes' && (
+                        <>
+                          <div className="fgrid fgrid-4">
+                            <div className="fl">
+                              <label>{uploadedDocs.hardware ? "Extra Laptops" : "Laptops"}</label>
+                              <input type="number" value={form.laptops} onChange={num("laptops")} min="0" />
+                            </div>
+                            <div className="fl">
+                              <label>{uploadedDocs.hardware ? "Extra Desktops" : "Desktops"}</label>
+                              <input type="number" value={form.desktops} onChange={num("desktops")} min="0" />
+                            </div>
+                            <div className="fl">
+                              <label>{uploadedDocs.hardware ? "Extra Monitors" : "Monitors"}</label>
+                              <input type="number" value={form.monitors} onChange={num("monitors")} min="0" />
+                            </div>
+                            <div className="fl">
+                              <label>{uploadedDocs.hardware ? "Extra Servers" : "On-Premise Servers"}</label>
+                              <input type="number" value={form.servers} onChange={num("servers")} min="0" />
+                            </div>
+                          </div>
+                          <div className="hr" />
+                          <div className="fgrid fgrid-2">
+                            <div className="fl">
+                              <label>Server Racks</label>
+                              <input type="number" value={form.racks} onChange={num("racks")} min="0" />
+                            </div>
+                            <div className="fl">
+                              <label>Server Operating Hours / Day</label>
+                              <div className="unit-input"><input type="number" value={form.srvhrs} onChange={num("srvhrs")} min="0" max="24" /><span className="unit-tag">hrs</span></div>
+                            </div>
+                            <div className="fl fg-span2">
+                              <label>Server Room Arrangement</label>
+                              <select value={form.srvtype} onChange={str("srvtype")}>
+                                <option value="hot_aisle_cold_aisle">Hot/Cold Aisle Containment</option>
+                                <option value="stacked_high_density">Stacked High Density</option>
+                                <option value="direct_liquid_cooling">Direct Liquid Cooling</option>
+                                <option value="custom">Custom / Unknown</option>
+                              </select>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                    <button className="btn-back" onClick={() => setStep(1)}>Back</button>
+                    <button className="btn-next" onClick={() => setStep(3)}>Next: Cloud & Services →</button>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="fade-up">
+                  <div style={{ background: "var(--white)", border: "1px solid var(--line)", borderRadius: 4, padding: "16px 20px", marginBottom: 20, borderLeft: "4px solid var(--blue)" }}>
+                    <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--blue)", marginBottom: 4 }}>Cloud & Purchased Services</div>
+                    <div style={{ fontSize: 14, color: "var(--muted)" }}>Emissions from your cloud infrastructure and outsourced services. We estimate this from your provider and monthly spend.</div>
+                  </div>
+                  <div className="step-card">
+                    <div className="step-card-header">
+                      <div className="step-card-num" style={{ background: "var(--blue)" }}>4</div>
+                      <div>
+                        <div className="step-card-title">Cloud Computing</div>
+                        <div className="step-card-sub">Emissions from cloud infrastructure are estimated from your provider and monthly spend</div>
+                      </div>
+                    </div>
+                    <div className="step-card-body">
+                      <VerificationBlock
+                        docKey="cloud"
+                        title="Cloud Billing"
+                        fields={{ "Provider": "cloud_provider", "Spend (Rs)": "cloud_monthly_bill_inr" }}
+                      />
+                      {sectionVerified.cloud !== 'yes' && (
+                        <div className="fgrid fgrid-2">
+                          <div className="fl">
+                            <label>Cloud Provider</label>
+                            <select value={form.cloud} onChange={str("cloud")}>
+                              <option value="none">None — On-Premise Only</option>
+                              <option value="aws">Amazon Web Services (AWS)</option>
+                              <option value="azure">Microsoft Azure</option>
+                              <option value="gcp">Google Cloud Platform (lowest carbon)</option>
+                            </select>
+                          </div>
+                          <div className="fl">
+                            <label>{uploadedDocs.cloud ? "Additional Cloud Spend" : "Monthly Cloud Spend"}</label>
+                            <div className="unit-input"><input type="number" value={form.cloudbill} onChange={num("cloudbill")} min="0" /><span className="unit-tag">Rs</span></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="step-card" style={{ marginTop: 16 }}>
+                    <div className="step-card-header">
+                      <div className="step-card-num" style={{ background: "var(--blue)" }}>4b</div>
+                      <div>
+                        <div className="step-card-title">Purchased Services</div>
+                        <div className="step-card-sub">SaaS subscriptions, outsourced work, professional services. Estimated from your monthly spend.</div>
+                      </div>
+                    </div>
+                    <div className="step-card-body">
+                      <div className="fgrid fgrid-2">
+                        <div className="fl">
+                          <label>Total Purchased Services Spend</label>
+                          <div className="unit-input"><input type="number" value={form.services} onChange={num("services")} min="0" /><span className="unit-tag">Rs/mo</span></div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 16, padding: "12px 16px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--g100)" }}>
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--muted)" }}>We estimate emissions from purchased services based on spend volume.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                    <button className="btn-back" onClick={() => setStep(2)}>Back</button>
+                    <button className="btn-calculate" onClick={doCalc} disabled={isCalculating}>
+                      {isCalculating ? <span className="processing-shimmer">Processing ML Audit...</span> : "Compute Footprint & View Results →"}
+                    </button>
+
+                  </div>
+                </div>
+              )}
+
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── RESULTS PAGE ────────────────────────────────────────────────────────── */
+  if (page === "results" && result) {
+    const { s1, s2, s3, tot, ann, intensity, band, bdown, monthly, annual } = result;
+    const fndgs = fList;
+    const donutData = [
+      { label: "Scope 1 — Direct", value: s1, color: "#C05A2C" },
+      { label: "Scope 2 — Electricity", value: s2, color: "#228F72" },
+      { label: "Scope 3 — Indirect", value: s3, color: "#2E5A8A" },
+    ];
+    const srcSorted = Object.entries(bdown).filter(([, v]) => v > 0.00005).sort(([, a], [, b]) => b - a);
+    const maxSrc = srcSorted[0]?.[1] || 1;
+
+    const bmTotal = BENCHMARK * (form.revenue || 1);
+    const bm = { s1: bmTotal * 0.05, s2: bmTotal * 0.65, s3: bmTotal * 0.30, tot: bmTotal };
+
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const lineYou = months.map((_, i) => tot * (i + 1));
+    const lineBm = months.map((_, i) => (bm.tot / 12) * (i + 1));
+    const lineMax = Math.max(...lineYou, ...lineBm, 0.01);
+
+    const srcColors = {
+      Diesel: "#C05A2C", Petrol: "#E07840",
+      "Natural Gas": "#D4944A", LPG: "#F0B860",
+      Electricity: "#228F72", Laptops: "#4EBFA0", Desktops: "#2DA888", Monitors: "#80D4B4", Servers: "#1A7059",
+      Cloud: "#2E5A2A", Services: "#5080B8",
+    };
+
+    function LineChart({ you, bench, max, w = 520, h = 140 }) {
+      const pad = { t: 12, r: 12, b: 28, l: 44 };
+      const gw = w - pad.l - pad.r; const gh = h - pad.t - pad.b;
+      const px = (i) => pad.l + i / (you.length - 1) * gw;
+      const py = (v) => pad.t + gh - (v / max) * gh;
+      const toPath = arr => arr.map((v, i) => `${i === 0 ? "M" : "L"}${px(i)},${py(v)}`).join(" ");
+      const toArea = arr => `${toPath(arr)} L${px(arr.length - 1)},${pad.t + gh} L${px(0)},${pad.t + gh} Z`;
+      return (
+        <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: h, display: "block" }}>
+          <defs>
+            <linearGradient id="gyou" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#228F72" stopOpacity=".25" />
+              <stop offset="100%" stopColor="#228F72" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="gbm" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#B08020" stopOpacity=".15" />
+              <stop offset="100%" stopColor="#B08020" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0, .25, .5, .75, 1].map(f => {
+            const y = pad.t + gh * (1 - f);
+            return <g key={f}>
+              <line x1={pad.l} y1={y} x2={w - pad.r} y2={y} stroke="var(--line)" strokeWidth={.8} />
+              <text x={pad.l - 6} y={y + 4} textAnchor="end" fontSize={8} fontFamily="JetBrains Mono,monospace" fill="var(--muted)">{(max * f).toFixed(1)}</text>
+            </g>;
+          })}
+          {you.map((_, i) => <text key={i} x={px(i)} y={h - 4} textAnchor="middle" fontSize={8} fontFamily="JetBrains Mono,monospace" fill="var(--muted)">{months[i]}</text>)}
+          <path d={toArea(bench)} fill="url(#gbm)" />
+          <path d={toPath(bench)} fill="none" stroke="#B08020" strokeWidth={1.5} strokeDasharray="4 3" />
+          <path d={toArea(you)} fill="url(#gyou)" />
+          <path d={toPath(you)} fill="none" stroke="#228F72" strokeWidth={2.5} />
+          <circle cx={px(you.length - 1)} cy={py(you[you.length - 1])} r={4} fill="#228F72" stroke="#fff" strokeWidth={1.5} />
+          <circle cx={px(bench.length - 1)} cy={py(bench[bench.length - 1])} r={4} fill="#B08020" stroke="#fff" strokeWidth={1.5} />
+        </svg>
+      );
+    }
+
+    function ScopeGroupedBar({ yours, bench, labels, colors, benchColor = "#B08020" }) {
+      const W = 480; const H = 180;
+      const pad = { t: 10, r: 12, b: 32, l: 44 };
+      const gw = W - pad.l - pad.r; const gh = H - pad.t - pad.b;
+      const allVals = [...yours, ...bench];
+      const maxV = Math.max(...allVals, 0.01);
+      const n = yours.length;
+      const groupW = gw / n;
+      const barW = groupW * .32;
+      const gap = groupW * .06;
+      return (
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block" }}>
+          {[0, .25, .5, .75, 1].map(f => {
+            const y = pad.t + gh * (1 - f);
+            return <g key={f}>
+              <line x1={pad.l} y1={y} x2={W - pad.r} y2={y} stroke="var(--line)" strokeWidth={.8} />
+              <text x={pad.l - 6} y={y + 4} textAnchor="end" fontSize={8} fontFamily="JetBrains Mono,monospace" fill="var(--muted)">{(maxV * f).toFixed(1)}</text>
+            </g>;
+          })}
+          {yours.map((v, i) => {
+            const bv = bench[i];
+            const gx = pad.l + i * groupW + groupW / 2;
+            const bh = (v / maxV) * gh; const bbh = (bv / maxV) * gh;
+            const by_ = pad.t + gh - bh; const bby = pad.t + gh - bbh;
+            return <g key={i}>
+              <rect x={gx - barW - gap / 2} y={bby} width={barW} height={bbh} fill={`${benchColor}40`} rx={2} />
+              <text x={gx - barW / 2 - gap / 2} y={bby - 4} textAnchor="middle" fontSize={7.5} fontFamily="JetBrains Mono,monospace" fill={benchColor}>{bv.toFixed(1)}</text>
+              <rect x={gx + gap / 2} y={by_} width={barW} height={bh} fill={colors[i]} rx={2} />
+              <text x={gx + barW / 2 + gap / 2} y={by_ - 4} textAnchor="middle" fontSize={7.5} fontFamily="JetBrains Mono,monospace" fill={colors[i]}>{v.toFixed(1)}</text>
+              <text x={gx} y={H - 4} textAnchor="middle" fontSize={9} fontFamily="Syne,sans-serif" fontWeight={600} fill="var(--ink2)">{labels[i]}</text>
+            </g>;
+          })}
+        </svg>
+      );
+    }
+
+    return (
+      <>
+        <style>{GLOBAL_CSS}</style>
+        <nav className="nav-bar scrolled">
+          <div className="nav-logo" onClick={() => setPage("home")}>
+            <div className="nav-hex"><span>C</span></div>
+            Carbonaire
+          </div>
+          <div className="nav-links">
+            <button className="nav-link" onClick={() => { setStep(0); setPage("calculator") }}>Recalculate</button>
+            <button className="nav-link" onClick={() => setPage("home")}>Home</button>
+            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+            <button className="nav-cta" onClick={() => setPage("ai")}>AI Advisor</button>
+          </div>
+        </nav>
+        {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
 
         <div className="results-section">
           <div className="results-header">
             <div className="results-header-inner">
               <div>
-                <div className="result-band-pill" style={{background:band.bg,color:band.col,border:`1px solid ${band.col}40`}}>
+                <div className="result-band-pill" style={{ background: band.bg, color: band.col, border: `1px solid ${band.col}40` }}>
                   {band.band}
                 </div>
-                <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:44,fontWeight:300,color:"#fff",letterSpacing:"-.02em",lineHeight:1,marginBottom:8}}>
-                  {form.company||"Your Company"}
+                <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 44, fontWeight: 300, color: "#fff", letterSpacing: "-.02em", lineHeight: 1, marginBottom: 8 }}>
+                  {form.company || "Your Company"}
                 </div>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,color:"rgba(255,255,255,.4)",letterSpacing:".08em",textTransform:"uppercase"}}>
-                  {form.industry} · {form.state==="default"?"India":form.state.replace("_"," ")} · {form.employees} employees
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, color: "rgba(255,255,255,.4)", letterSpacing: ".08em", textTransform: "uppercase" }}>
+                  {form.industry} · {form.state === "default" ? "India" : form.state.replace("_", " ")} · {form.employees} employees
                 </div>
               </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".12em",textTransform:"uppercase",color:"rgba(255,255,255,.4)",marginBottom:8}}>Emission Intensity</div>
-                <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:68,fontWeight:300,lineHeight:1,color:band.col}}>{intensity.toFixed(2)}</div>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:11,color:"rgba(255,255,255,.4)"}}>tCO2e per Rs Crore revenue</div>
-                <div style={{marginTop:10,fontFamily:"JetBrains Mono,monospace",fontSize:11,color:intensity<=BENCHMARK?"var(--g300)":"#E88A6A"}}>
-                  {intensity<=BENCHMARK?`${((BENCHMARK-intensity)/BENCHMARK*100).toFixed(1)}% below industry median`:`${((intensity-BENCHMARK)/BENCHMARK*100).toFixed(1)}% above industry median`}
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginBottom: 8 }}>Emission Intensity</div>
+                <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 68, fontWeight: 300, lineHeight: 1, color: band.col }}>{intensity.toFixed(2)}</div>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, color: "rgba(255,255,255,.4)" }}>tCO2e per Rs Crore revenue</div>
+                <div style={{ marginTop: 10, fontFamily: "JetBrains Mono,monospace", fontSize: 11, color: intensity <= BENCHMARK ? "var(--g300)" : "#E88A6A" }}>
+                  {intensity <= BENCHMARK ? `${((BENCHMARK - intensity) / BENCHMARK * 100).toFixed(1)}% below industry median` : `${((intensity - BENCHMARK) / BENCHMARK * 100).toFixed(1)}% above industry median`}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="results-body">
+        <div className="results-body">
+            {apiMessage && (
+              <div style={{ marginBottom: 20, background: "#FFF3E7", border: "1px solid rgba(192,90,44,.18)", borderLeft: "4px solid #C05A2C", borderRadius: 4, padding: "14px 16px", color: "#7A3E21", lineHeight: 1.6 }}>
+                {apiMessage}
+              </div>
+            )}
+            <MLInsightsCard data={mlData} />
+            <MLDashboard
+              mlData={mlData}
+              personalization={personalization}
+              learningStatus={learningStatus}
+              user={user}
+              onLogin={() => setShowSignup(true)}
+            />
 
-            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:1,background:"var(--line)",borderRadius:8,overflow:"hidden",marginBottom:28,boxShadow:"var(--sh)"}}>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 1, background: "var(--line)", borderRadius: 8, overflow: "hidden", marginBottom: 28, boxShadow: "var(--sh)" }}>
               {[
-                {label:"Monthly Total",val:tot,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"var(--ink)",pct:100,note:`${(tot*1000).toFixed(1)} kgCO2e`},
-                {label:"Annual Total",val:ann,fmt:v=>v.toFixed(1),unit:"tCO2e / yr",color:"var(--ink)",pct:(ann/(bm.tot||1))*100,note:`Benchmark: ${bm.tot.toFixed(1)} t`},
-                {label:"Scope 1 — Direct",val:s1,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#C05A2C",pct:tot>0?(s1/tot)*100:0,note:`${tot>0?(s1/tot*100).toFixed(1):0}% of total`},
-                {label:"Scope 2 — Electricity",val:s2,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#228F72",pct:tot>0?(s2/tot)*100:0,note:`${tot>0?(s2/tot*100).toFixed(1):0}% of total`},
-                {label:"Scope 3 — Indirect",val:s3,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#2E5A8A",pct:tot>0?(s3/tot)*100:0,note:`${tot>0?(s3/tot*100).toFixed(1):0}% of total`},
-              ].map(k=>(
-                <div key={k.label} style={{background:"var(--white)",padding:"20px 20px 16px"}}>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,letterSpacing:".1em",textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>{k.label}</div>
-                  <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:30,fontWeight:300,color:k.color,lineHeight:1}}>{k.fmt(k.val)}</div>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",marginTop:4}}>{k.unit}</div>
-                  <div style={{marginTop:10,height:5,background:"var(--g100)",borderRadius:99,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${Math.min(k.pct,100)}%`,background:k.color,borderRadius:99}}/>
+                { label: "Combined Total", val: result.combined.tot, fmt: v => v.toFixed(3), unit: "tCO2e / mo", color: "var(--ink)", pct: 100, note: `${(result.combined.tot * 1000).toFixed(1)} kgCO2e` },
+                { label: "Annual Estimate", val: result.combined.ann, fmt: v => v.toFixed(1), unit: "tCO2e / yr", color: "var(--ink)", pct: (result.combined.ann / (bm.tot || 1)) * 100, note: `Benchmark: ${bm.tot.toFixed(1)} t` },
+                { label: "Scope 1 — Direct", val: result.combined.s1, fmt: v => v.toFixed(3), unit: "tCO2e / mo", color: "#C05A2C", pct: result.combined.tot > 0 ? (result.combined.s1 / result.combined.tot) * 100 : 0, note: `${result.combined.tot > 0 ? (result.combined.s1 / result.combined.tot * 100).toFixed(1) : 0}% of total` },
+                { label: "Scope 2 — Electricity", val: result.combined.s2, fmt: v => v.toFixed(3), unit: "tCO2e / mo", color: "#228F72", pct: result.combined.tot > 0 ? (result.combined.s2 / result.combined.tot) * 100 : 0, note: `${result.combined.tot > 0 ? (result.combined.s2 / result.combined.tot * 100).toFixed(1) : 0}% of total` },
+                { label: "Scope 3 — Indirect", val: result.combined.s3, fmt: v => v.toFixed(3), unit: "tCO2e / mo", color: "#2E5A8A", pct: result.combined.tot > 0 ? (result.combined.s3 / result.combined.tot) * 100 : 0, note: `${result.combined.tot > 0 ? (result.combined.s3 / result.combined.tot * 100).toFixed(1) : 0}% of total` },
+              ].map(k => (
+                <div key={k.label} style={{ background: "var(--white)", padding: "20px 20px 16px" }}>
+                  <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>{k.label}</div>
+                  <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 30, fontWeight: 300, color: k.color, lineHeight: 1 }}>{k.fmt(k.val)}</div>
+                  <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)", marginTop: 4 }}>{k.unit}</div>
+                  <div style={{ marginTop: 10, height: 5, background: "var(--g100)", borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.min(k.pct, 100)}%`, background: k.color, borderRadius: 99 }} />
                   </div>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",marginTop:5}}>{k.note}</div>
+                  <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)", marginTop: 5 }}>{k.note}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{display:"grid",gridTemplateColumns:"220px 220px 1fr",gap:20,marginBottom:20}}>
-              <div className="res-card" style={{display:"flex",flexDirection:"column"}}>
+            {/* DATA ORIGINS SEGMENT */}
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Data Origin & Attribution Breakdown</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+                <div className="res-card" style={{ borderTop: "4px solid #228F72" }}>
+                  <div className="res-card-header">
+                    <div className="res-card-title">Verified Machine-Extraction</div>
+                  </div>
+                  <div className="res-card-body">
+                    <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "#228F72", marginBottom: 4 }}>{result.extracted.tot.toFixed(3)} tCO2e/mo</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Calculated purely from provided documents.</div>
+                    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                      {Object.entries(uploadedDocs).filter(([, v]) => v).map(([k]) => (
+                        <div key={k} style={{ fontSize: 11, marginVertical: 4, color: "var(--ink)" }}>✅ {k.charAt(0).toUpperCase() + k.slice(1)} bill verified</div>
+                      ))}
+                      {Object.values(uploadedDocs).filter(Boolean).length === 0 && <div style={{ fontSize: 11, color: "var(--muted)" }}>No document data attributed.</div>}
+                    </div>
+                  </div>
+                </div>
+                <div className="res-card" style={{ borderTop: "4px solid var(--g400)" }}>
+                  <div className="res-card-header">
+                    <div className="res-card-title">Manual Data Input</div>
+                  </div>
+                  <div className="res-card-body">
+                    <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "var(--ink)", marginBottom: 4 }}>{result.manual.tot.toFixed(3)} tCO2e/mo</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Calculated from user-entered missing values.</div>
+                    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>Includes organizational overhead and supplemental records.</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="res-card" style={{ borderTop: "4px solid var(--ink)" }}>
+                  <div className="res-card-header">
+                    <div className="res-card-title">Consolidated Footprint</div>
+                  </div>
+                  <div className="res-card-body">
+                    <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "var(--ink)", marginBottom: 4 }}>{result.combined.tot.toFixed(3)} tCO2e/mo</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Total official organizational impact.</div>
+                    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", height: 10, borderRadius: 99, overflow: "hidden", marginTop: 10 }}>
+                      <div style={{ flex: result.extracted.tot, background: "#228F72" }} title="Extracted" />
+                      <div style={{ flex: result.manual.tot, background: "var(--g400)" }} title="Manual" />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "JetBrains Mono,monospace", fontSize: 8 }}>
+                      <span>DOC: {(result.combined.tot > 0 ? result.extracted.tot / result.combined.tot * 100 : 0).toFixed(0)}%</span>
+                      <span>MAN: {(result.combined.tot > 0 ? result.manual.tot / result.combined.tot * 100 : 0).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "220px 220px 1fr", gap: 20, marginBottom: 20 }}>
+              <div className="res-card" style={{ display: "flex", flexDirection: "column" }}>
                 <div className="res-card-header"><div className="res-card-title">Scope Split</div></div>
-                <div className="res-card-body" style={{display:"flex",flexDirection:"column",alignItems:"center",flex:1}}>
-                  <DonutChart data={donutData.filter(d=>d.value>0)} size={140}/>
-                  <div style={{width:"100%",marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
-                    {donutData.map(d=>(
+                <div className="res-card-body" style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                  <DonutChart data={donutData.filter(d => d.value > 0)} size={140} />
+                  <div style={{ width: "100%", marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {donutData.map(d => (
                       <div key={d.label}>
-                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                          <div style={{display:"flex",alignItems:"center",gap:6}}>
-                            <div style={{width:8,height:8,borderRadius:"50%",background:d.color,flexShrink:0}}/>
-                            <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>{d.label.split("—")[0].trim()}</span>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color, flexShrink: 0 }} />
+                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{d.label.split("—")[0].trim()}</span>
                           </div>
-                          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:d.color,fontWeight:600}}>{tot>0?(d.value/tot*100).toFixed(1):0}%</span>
+                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: d.color, fontWeight: 600 }}>{tot > 0 ? (d.value / tot * 100).toFixed(1) : 0}%</span>
                         </div>
-                        <div style={{height:3,background:"var(--g100)",borderRadius:99,overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${tot>0?(d.value/tot)*100:0}%`,background:d.color,borderRadius:99}}/>
+                        <div style={{ height: 3, background: "var(--g100)", borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${tot > 0 ? (d.value / tot) * 100 : 0}%`, background: d.color, borderRadius: 99 }} />
                         </div>
-                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"var(--muted)",marginTop:2}}>{d.value.toFixed(4)} t/mo</div>
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", marginTop: 2 }}>{d.value.toFixed(4)} t/mo</div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="res-card" style={{display:"flex",flexDirection:"column"}}>
+              <div className="res-card" style={{ display: "flex", flexDirection: "column" }}>
                 <div className="res-card-header"><div className="res-card-title">Performance</div></div>
-                <div className="res-card-body" style={{flex:1}}>
+                <div className="res-card-body" style={{ flex: 1 }}>
                   <div className="gauge-wrap">
-                    <GaugeSVG value={intensity} max={9} color={band.col}/>
-                    <div className="gauge-value" style={{color:band.col}}>{intensity.toFixed(2)}</div>
+                    <GaugeSVG value={intensity} max={9} color={band.col} />
+                    <div className="gauge-value" style={{ color: band.col }}>{intensity.toFixed(2)}</div>
                     <div className="gauge-unit">tCO2e / Rs Crore</div>
-                    <div style={{marginTop:10,padding:"6px 14px",borderRadius:99,background:band.bg,border:`1px solid ${band.col}30`,fontFamily:"JetBrains Mono,monospace",fontSize:10,color:band.col,letterSpacing:".08em",textTransform:"uppercase"}}>
+                    <div style={{ marginTop: 10, padding: "6px 14px", borderRadius: 99, background: band.bg, border: `1px solid ${band.col}30`, fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: band.col, letterSpacing: ".08em", textTransform: "uppercase" }}>
                       {band.band}
                     </div>
                   </div>
-                  <div style={{marginTop:14}}>
-                    {BANDS.map(b=>(
-                      <div key={b.band} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:"1px solid var(--line)"}}>
-                        <div style={{width:8,height:8,borderRadius:"50%",background:b.col,flexShrink:0}}/>
-                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:result.band.band===b.band?"var(--ink)":"var(--muted)",flex:1,fontWeight:result.band.band===b.band?600:400}}>{b.band}</div>
-                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>{b.min}–{b.max===Infinity?"∞":b.max}</div>
-                        {result.band.band===b.band&&<div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:b.col}}>◀</div>}
+                  <div style={{ marginTop: 14 }}>
+                    {BANDS.map(b => (
+                      <div key={b.band} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0", borderBottom: "1px solid var(--line)" }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: b.col, flexShrink: 0 }} />
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: result.band.band === b.band ? "var(--ink)" : "var(--muted)", flex: 1, fontWeight: result.band.band === b.band ? 600 : 400 }}>{b.band}</div>
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{b.min}–{b.max === Infinity ? "∞" : b.max}</div>
+                        {result.band.band === b.band && <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: b.col }}>◀</div>}
                       </div>
                     ))}
                   </div>
@@ -2441,63 +3064,63 @@ export default function App() {
                 </div>
                 <div className="res-card-body">
                   <ScopeGroupedBar
-                    yours={[annual.s1,annual.s2,annual.s3,annual.tot]}
-                    bench={[bm.s1,bm.s2,bm.s3,bm.tot]}
-                    labels={["Scope 1","Scope 2","Scope 3","Total"]}
-                    colors={["#C05A2C","#228F72","#2E5A8A","var(--ink)"]}
+                    yours={[annual.s1, annual.s2, annual.s3, annual.tot]}
+                    bench={[bm.s1, bm.s2, bm.s3, bm.tot]}
+                    labels={["Scope 1", "Scope 2", "Scope 3", "Total"]}
+                    colors={["#C05A2C", "#228F72", "#2E5A8A", "var(--ink)"]}
                   />
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:1,background:"var(--line)",borderRadius:4,overflow:"hidden",marginTop:16}}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "var(--line)", borderRadius: 4, overflow: "hidden", marginTop: 16 }}>
                     {[
-                      {label:"Scope 1",yours:annual.s1,bench:bm.s1,col:"#C05A2C"},
-                      {label:"Scope 2",yours:annual.s2,bench:bm.s2,col:"#228F72"},
-                      {label:"Scope 3",yours:annual.s3,bench:bm.s3,col:"#2E5A8A"},
-                      {label:"Total",yours:annual.tot,bench:bm.tot,col:"var(--ink)"},
-                    ].map(c=>(
-                      <div key={c.label} style={{background:"var(--white)",padding:"10px 12px"}}>
-                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,letterSpacing:".08em",textTransform:"uppercase",color:"var(--muted)",marginBottom:4}}>{c.label}</div>
-                        <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:20,fontWeight:300,color:c.col,lineHeight:1}}>{c.yours.toFixed(1)}</div>
-                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"var(--muted)",marginTop:3}}>
+                      { label: "Scope 1", yours: annual.s1, bench: bm.s1, col: "#C05A2C" },
+                      { label: "Scope 2", yours: annual.s2, bench: bm.s2, col: "#228F72" },
+                      { label: "Scope 3", yours: annual.s3, bench: bm.s3, col: "#2E5A8A" },
+                      { label: "Total", yours: annual.tot, bench: bm.tot, col: "var(--ink)" },
+                    ].map(c => (
+                      <div key={c.label} style={{ background: "var(--white)", padding: "10px 12px" }}>
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 4 }}>{c.label}</div>
+                        <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 20, fontWeight: 300, color: c.col, lineHeight: 1 }}>{c.yours.toFixed(1)}</div>
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", marginTop: 3 }}>
                           vs {c.bench.toFixed(1)} bm
-                          <span style={{marginLeft:4,color:c.yours<=c.bench?"#28541C":"#C05A2C"}}>
-                            {c.yours<=c.bench?"✓":"↑"}
+                          <span style={{ marginLeft: 4, color: c.yours <= c.bench ? "#28541C" : "#C05A2C" }}>
+                            {c.yours <= c.bench ? "✓" : "↑"}
                           </span>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div style={{marginTop:10,display:"flex",gap:16,alignItems:"center"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <div style={{width:18,height:4,borderRadius:2,background:"var(--g500)"}}/>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>Your company</span>
+                  <div style={{ marginTop: 10, display: "flex", gap: 16, alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 18, height: 4, borderRadius: 2, background: "var(--g500)" }} />
+                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Your company</span>
                     </div>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <div style={{width:18,height:4,borderRadius:2,background:"rgba(176,128,32,.35)"}}/>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>Sector benchmark (IT India avg)</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 18, height: 4, borderRadius: 2, background: "rgba(176,128,32,.35)" }} />
+                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Sector benchmark (IT India avg)</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:20}}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
               <div className="res-card">
                 <div className="res-card-header">
                   <div className="res-card-title">12-Month Cumulative Emissions Projection</div>
                 </div>
                 <div className="res-card-body">
-                  <LineChart you={lineYou} bench={lineBm} max={lineMax}/>
-                  <div style={{display:"flex",gap:20,marginTop:10,alignItems:"center"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:7}}>
-                      <svg width={20} height={8}><line x1={0} y1={4} x2={20} y2={4} stroke="#228F72" strokeWidth={2.5}/></svg>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>Your company ({ann.toFixed(1)} t/yr)</span>
+                  <LineChart you={lineYou} bench={lineBm} max={lineMax} />
+                  <div style={{ display: "flex", gap: 20, marginTop: 10, alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      <svg width={20} height={8}><line x1={0} y1={4} x2={20} y2={4} stroke="#228F72" strokeWidth={2.5} /></svg>
+                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Your company ({ann.toFixed(1)} t/yr)</span>
                     </div>
-                    <div style={{display:"flex",alignItems:"center",gap:7}}>
-                      <svg width={20} height={8}><line x1={0} y1={4} x2={20} y2={4} stroke="#B08020" strokeWidth={1.5} strokeDasharray="4 3"/></svg>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>Benchmark ({bm.tot.toFixed(1)} t/yr)</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      <svg width={20} height={8}><line x1={0} y1={4} x2={20} y2={4} stroke="#B08020" strokeWidth={1.5} strokeDasharray="4 3" /></svg>
+                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Benchmark ({bm.tot.toFixed(1)} t/yr)</span>
                     </div>
                   </div>
-                  <div style={{marginTop:12,padding:"10px 14px",background:"var(--g50)",borderRadius:4,border:"1px solid var(--line)",fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>
-                    At current rate your annual footprint will be <strong style={{color:"var(--ink2)"}}>{ann.toFixed(1)} tCO2e</strong> vs the sector benchmark of <strong style={{color:"#B08020"}}>{bm.tot.toFixed(1)} tCO2e</strong> for a company of your size and revenue.
+                  <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
+                    At current rate your annual footprint will be <strong style={{ color: "var(--ink2)" }}>{ann.toFixed(1)} tCO2e</strong> vs the sector benchmark of <strong style={{ color: "#B08020" }}>{bm.tot.toFixed(1)} tCO2e</strong> for a company of your size and revenue.
                   </div>
                 </div>
               </div>
@@ -2507,90 +3130,90 @@ export default function App() {
                   <div className="res-card-title">Scope Proportion — You vs Benchmark</div>
                 </div>
                 <div className="res-card-body">
-                  <div style={{marginBottom:20}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                      <span style={{fontFamily:"Syne,sans-serif",fontSize:12,fontWeight:600,color:"var(--ink)"}}>Your Company</span>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"var(--muted)"}}>{tot.toFixed(3)} tCO2e/mo</span>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: "Syne,sans-serif", fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>Your Company</span>
+                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--muted)" }}>{tot.toFixed(3)} tCO2e/mo</span>
                     </div>
-                    <div style={{display:"flex",height:28,borderRadius:4,overflow:"hidden",gap:1}}>
-                      {donutData.filter(d=>d.value>0).map(d=>(
-                        <div key={d.label} style={{flex:d.value,background:d.color,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                          {(d.value/tot)>0.08&&<span style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"#fff"}}>{(d.value/tot*100).toFixed(0)}%</span>}
+                    <div style={{ display: "flex", height: 28, borderRadius: 4, overflow: "hidden", gap: 1 }}>
+                      {donutData.filter(d => d.value > 0).map(d => (
+                        <div key={d.label} style={{ flex: d.value, background: d.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {(d.value / tot) > 0.08 && <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#fff" }}>{(d.value / tot * 100).toFixed(0)}%</span>}
                         </div>
                       ))}
                     </div>
-                    <div style={{display:"flex",gap:2,marginTop:4}}>
-                      {donutData.map(d=>(
-                        <div key={d.label} style={{flex:d.value,fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"var(--muted)",textAlign:"center"}}>{d.value.toFixed(3)}</div>
+                    <div style={{ display: "flex", gap: 2, marginTop: 4 }}>
+                      {donutData.map(d => (
+                        <div key={d.label} style={{ flex: d.value, fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", textAlign: "center" }}>{d.value.toFixed(3)}</div>
                       ))}
                     </div>
                   </div>
-                  <div style={{marginBottom:24}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                      <span style={{fontFamily:"Syne,sans-serif",fontSize:12,fontWeight:600,color:"var(--muted)"}}>Sector Benchmark</span>
-                      <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"var(--muted)"}}>{(bm.tot/12).toFixed(3)} tCO2e/mo</span>
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: "Syne,sans-serif", fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>Sector Benchmark</span>
+                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--muted)" }}>{(bm.tot / 12).toFixed(3)} tCO2e/mo</span>
                     </div>
-                    <div style={{display:"flex",height:28,borderRadius:4,overflow:"hidden",gap:1}}>
-                      <div style={{flex:bm.s1,background:"rgba(192,90,44,.4)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"#C05A2C"}}>5%</span>
+                    <div style={{ display: "flex", height: 28, borderRadius: 4, overflow: "hidden", gap: 1 }}>
+                      <div style={{ flex: bm.s1, background: "rgba(192,90,44,.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#C05A2C" }}>5%</span>
                       </div>
-                      <div style={{flex:bm.s2,background:"rgba(34,143,114,.4)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"#228F72"}}>65%</span>
+                      <div style={{ flex: bm.s2, background: "rgba(34,143,114,.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#228F72" }}>65%</span>
                       </div>
-                      <div style={{flex:bm.s3,background:"rgba(46,90,138,.35)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"#2E5A8A"}}>30%</span>
+                      <div style={{ flex: bm.s3, background: "rgba(46,90,138,.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#2E5A8A" }}>30%</span>
                       </div>
                     </div>
                   </div>
-                  <div style={{display:"flex",gap:16,flexWrap:"wrap",borderTop:"1px solid var(--line)",paddingTop:12}}>
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
                     {[
-                      {label:"Scope 1 — Direct",col:"#C05A2C"},
-                      {label:"Scope 2 — Electricity",col:"#228F72"},
-                      {label:"Scope 3 — Indirect",col:"#2E5A8A"},
-                    ].map(l=>(
-                      <div key={l.label} style={{display:"flex",alignItems:"center",gap:6}}>
-                        <div style={{width:10,height:10,borderRadius:2,background:l.col,flexShrink:0}}/>
-                        <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>{l.label}</span>
+                      { label: "Scope 1 — Direct", col: "#C05A2C" },
+                      { label: "Scope 2 — Electricity", col: "#228F72" },
+                      { label: "Scope 3 — Indirect", col: "#2E5A8A" },
+                    ].map(l => (
+                      <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: 2, background: l.col, flexShrink: 0 }} />
+                        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{l.label}</span>
                       </div>
                     ))}
                   </div>
-                  <div style={{marginTop:14,padding:"10px 14px",background:"var(--g50)",borderRadius:4,border:"1px solid var(--line)",fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>
+                  <div style={{ marginTop: 14, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
                     Indian IT sector typical split: S1 5% · S2 65% · S3 30%
                   </div>
                 </div>
               </div>
             </div>
 
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:20}}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
               <div className="res-card">
                 <div className="res-card-header"><div className="res-card-title">Intensity Benchmark — tCO2e / Rs Crore</div></div>
                 <div className="res-card-body">
                   <div className="bar-chart-wrap">
                     {[
-                      {label:"Your Company",val:intensity,color:band.col,isYou:true},
-                      {label:"Excellent  2.4",val:2.4,color:"#28541C",isYou:false},
-                      {label:"Good  3.0",val:3.0,color:"#4E8A3A",isYou:false},
-                      {label:"IT Median",val:BENCHMARK,color:"#B08020",isYou:false},
-                      {label:"High Emitter  3.6+",val:4.5,color:"#C05A2C",isYou:false},
-                    ].map((b,i)=>{
-                      const maxVal=Math.max(intensity,4.5,1);
-                      const pct=(b.val/maxVal)*100;
-                      return(
+                      { label: "Your Company", val: intensity, color: band.col, isYou: true },
+                      { label: "Excellent  2.4", val: 2.4, color: "#28541C", isYou: false },
+                      { label: "Good  3.0", val: 3.0, color: "#4E8A3A", isYou: false },
+                      { label: "IT Median", val: BENCHMARK, color: "#B08020", isYou: false },
+                      { label: "High Emitter  3.6+", val: 4.5, color: "#C05A2C", isYou: false },
+                    ].map((b, i) => {
+                      const maxVal = Math.max(intensity, 4.5, 1);
+                      const pct = (b.val / maxVal) * 100;
+                      return (
                         <div key={i} className="brow">
-                          <div className="brow-label" style={{fontWeight:b.isYou?700:400,color:b.isYou?b.color:"var(--muted)"}}>{b.label}</div>
+                          <div className="brow-label" style={{ fontWeight: b.isYou ? 700 : 400, color: b.isYou ? b.color : "var(--muted)" }}>{b.label}</div>
                           <div className="brow-track">
-                            <div className="brow-fill" style={{width:`${pct}%`,background:b.isYou?b.color:`${b.color}50`}}>
-                              {b.isYou&&<span>{b.val.toFixed(2)}</span>}
+                            <div className="brow-fill" style={{ width: `${pct}%`, background: b.isYou ? b.color : `${b.color}50` }}>
+                              {b.isYou && <span>{b.val.toFixed(2)}</span>}
                             </div>
-                            {!b.isYou&&<div style={{position:"absolute",top:0,left:`${pct}%`,bottom:0,width:2,background:b.color,opacity:.8}}/>}
+                            {!b.isYou && <div style={{ position: "absolute", top: 0, left: `${pct}%`, bottom: 0, width: 2, background: b.color, opacity: .8 }} />}
                           </div>
-                          <div className="brow-val" style={{color:b.isYou?b.color:"var(--muted)",fontWeight:b.isYou?700:400}}>{b.val.toFixed(2)}</div>
+                          <div className="brow-val" style={{ color: b.isYou ? b.color : "var(--muted)", fontWeight: b.isYou ? 700 : 400 }}>{b.val.toFixed(2)}</div>
                         </div>
                       );
                     })}
                   </div>
-                  <div style={{marginTop:16,padding:"10px 14px",background:"var(--g50)",borderRadius:4,border:"1px solid var(--line)",fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>
-                    Lower is better. Your intensity vs sector: {intensity<=BENCHMARK?`${((BENCHMARK-intensity)/BENCHMARK*100).toFixed(1)}% below`:`${((intensity-BENCHMARK)/BENCHMARK*100).toFixed(1)}% above`}
+                  <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
+                    Lower is better. Your intensity vs sector: {intensity <= BENCHMARK ? `${((BENCHMARK - intensity) / BENCHMARK * 100).toFixed(1)}% below` : `${((intensity - BENCHMARK) / BENCHMARK * 100).toFixed(1)}% above`}
                   </div>
                 </div>
               </div>
@@ -2599,37 +3222,37 @@ export default function App() {
                 <div className="res-card-header"><div className="res-card-title">Emission Source Breakdown — Monthly</div></div>
                 <div className="res-card-body">
                   <div className="bar-chart-wrap">
-                    {srcSorted.map(([k,v],i)=>{
-                      const pct=tot>0?(v/tot)*100:0;
-                      const col=srcColors[k]||"var(--g500)";
-                      return(
+                    {srcSorted.map(([k, v], i) => {
+                      const pct = tot > 0 ? (v / tot) * 100 : 0;
+                      const col = srcColors[k] || "var(--g500)";
+                      return (
                         <div key={i} className="brow">
-                          <div className="brow-label" style={{color:col}}>{k}</div>
+                          <div className="brow-label" style={{ color: col }}>{k}</div>
                           <div className="brow-track">
-                            <div className="brow-fill" style={{width:`${(v/maxSrc)*100}%`,background:col}}>
-                              {v>maxSrc*.12&&<span>{v.toFixed(3)} t</span>}
+                            <div className="brow-fill" style={{ width: `${(v / maxSrc) * 100}%`, background: col }}>
+                              {v > maxSrc * .12 && <span>{v.toFixed(3)} t</span>}
                             </div>
                           </div>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",minWidth:64}}>
-                            <div className="brow-val" style={{color:col,fontSize:10}}>{v.toFixed(4)}</div>
-                            <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"var(--muted)"}}>{pct.toFixed(1)}%</div>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", minWidth: 64 }}>
+                            <div className="brow-val" style={{ color: col, fontSize: 10 }}>{v.toFixed(4)}</div>
+                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>{pct.toFixed(1)}%</div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  <div style={{marginTop:16}}>
-                    <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,letterSpacing:".1em",textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>Share of total monthly emissions</div>
-                    <div style={{display:"flex",height:20,borderRadius:3,overflow:"hidden",gap:1}}>
-                      {srcSorted.map(([k,v],i)=>(
-                        <div key={i} title={`${k}: ${(v/tot*100).toFixed(1)}%`} style={{flex:v,background:srcColors[k]||"var(--g500)",minWidth:2}}/>
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>Share of total monthly emissions</div>
+                    <div style={{ display: "flex", height: 20, borderRadius: 3, overflow: "hidden", gap: 1 }}>
+                      {srcSorted.map(([k, v], i) => (
+                        <div key={i} title={`${k}: ${(v / tot * 100).toFixed(1)}%`} style={{ flex: v, background: srcColors[k] || "var(--g500)", minWidth: 2 }} />
                       ))}
                     </div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:"6px 12px",marginTop:8}}>
-                      {srcSorted.slice(0,6).map(([k,v],i)=>(
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:5}}>
-                          <div style={{width:8,height:8,borderRadius:1,background:srcColors[k]||"var(--g500)",flexShrink:0}}/>
-                          <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"var(--muted)"}}>{k} {tot>0?(v/tot*100).toFixed(1):0}%</span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 8 }}>
+                      {srcSorted.slice(0, 6).map(([k, v], i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: 1, background: srcColors[k] || "var(--g500)", flexShrink: 0 }} />
+                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>{k} {tot > 0 ? (v / tot * 100).toFixed(1) : 0}%</span>
                         </div>
                       ))}
                     </div>
@@ -2638,72 +3261,79 @@ export default function App() {
               </div>
             </div>
 
-            <div className="res-card" style={{marginBottom:28}}>
+            <div className="res-card" style={{ marginBottom: 28 }}>
               <div className="res-card-header"><div className="res-card-title">Annual Scope Emissions vs Benchmark — Detailed Comparison (tCO2e / year)</div></div>
               <div className="res-card-body">
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:1,background:"var(--line)",borderRadius:6,overflow:"hidden",marginBottom:24}}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "var(--line)", borderRadius: 6, overflow: "hidden", marginBottom: 24 }}>
                   {[
-                    {label:"Scope 1 — Direct",yours:annual.s1,bench:bm.s1,color:"#C05A2C"},
-                    {label:"Scope 2 — Electricity",yours:annual.s2,bench:bm.s2,color:"#228F72"},
-                    {label:"Scope 3 — Indirect",yours:annual.s3,bench:bm.s3,color:"#2E5A8A"},
-                    {label:"Total Annual",yours:annual.tot,bench:bm.tot,color:"var(--ink)"},
-                  ].map(c=>{
-                    const diff=c.yours-c.bench;
-                    const better=diff<=0;
-                    return(
-                      <div key={c.label} style={{background:"var(--white)",padding:"18px 20px"}}>
-                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,letterSpacing:".1em",textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>{c.label}</div>
-                        <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:32,fontWeight:300,color:c.color,lineHeight:1}}>{c.yours.toFixed(1)}</div>
-                        <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",marginTop:4}}>tCO2e / year</div>
-                        <div style={{marginTop:10}}>
-                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                            <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"var(--muted)"}}>You</span>
-                            <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:8,color:"var(--muted)"}}>Benchmark</span>
+                    { label: "Scope 1 — Direct", yours: annual.s1, bench: bm.s1, color: "#C05A2C" },
+                    { label: "Scope 2 — Electricity", yours: annual.s2, bench: bm.s2, color: "#228F72" },
+                    { label: "Scope 3 — Indirect", yours: annual.s3, bench: bm.s3, color: "#2E5A8A" },
+                    { label: "Total Annual", yours: annual.tot, bench: bm.tot, color: "var(--ink)" },
+                  ].map(c => {
+                    const diff = c.yours - c.bench;
+                    const better = diff <= 0;
+                    return (
+                      <div key={c.label} style={{ background: "var(--white)", padding: "18px 20px" }}>
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>{c.label}</div>
+                        <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 32, fontWeight: 300, color: c.color, lineHeight: 1 }}>{c.yours.toFixed(1)}</div>
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)", marginTop: 4 }}>tCO2e / year</div>
+                        <div style={{ marginTop: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>You</span>
+                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>Benchmark</span>
                           </div>
                           {[
-                            {v:c.yours,col:c.color,max:Math.max(c.yours,c.bench,0.01)},
-                            {v:c.bench,col:"rgba(176,128,32,.5)",max:Math.max(c.yours,c.bench,0.01)},
-                          ].map((b,i)=>(
-                            <div key={i} style={{height:5,background:"var(--g100)",borderRadius:99,overflow:"hidden",marginBottom:4}}>
-                              <div style={{height:"100%",width:`${(b.v/b.max)*100}%`,background:b.col,borderRadius:99}}/>
+                            { v: c.yours, col: c.color, max: Math.max(c.yours, c.bench, 0.01) },
+                            { v: c.bench, col: "rgba(176,128,32,.5)", max: Math.max(c.yours, c.bench, 0.01) },
+                          ].map((b, i) => (
+                            <div key={i} style={{ height: 5, background: "var(--g100)", borderRadius: 99, overflow: "hidden", marginBottom: 4 }}>
+                              <div style={{ height: "100%", width: `${(b.v / b.max) * 100}%`, background: b.col, borderRadius: 99 }} />
                             </div>
                           ))}
-                          <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:better?"#28541C":"#C05A2C",marginTop:4}}>
-                            {better?`${Math.abs(diff).toFixed(1)} t below benchmark`:`${Math.abs(diff).toFixed(1)} t above benchmark`}
+                          <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: better ? "#28541C" : "#C05A2C", marginTop: 4 }}>
+                            {better ? `${Math.abs(diff).toFixed(1)} t below benchmark` : `${Math.abs(diff).toFixed(1)} t above benchmark`}
                           </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-                <div style={{padding:"10px 14px",background:"var(--g50)",borderRadius:4,border:"1px solid var(--line)",fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>
-                  Benchmark assumes Indian IT sector average of {BENCHMARK} tCO2e/Rs Cr · S1: 5% · S2: 65% · S3: 30% for a company with Rs {(form.revenue||1).toFixed(1)} Cr revenue.
+                <div style={{ padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
+                  Benchmark assumes Indian IT sector average of {BENCHMARK} tCO2e/Rs Cr · S1: 5% · S2: 65% · S3: 30% for a company with Rs {(form.revenue || 1).toFixed(1)} Cr revenue.
                 </div>
               </div>
             </div>
 
-            <div style={{marginBottom:12}}>
-              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".16em",textTransform:"uppercase",color:"var(--muted)",marginBottom:6}}>Expert System Findings & Recommendations</div>
-              <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:32,fontWeight:300,color:"var(--ink)",marginBottom:24,letterSpacing:"-.01em"}}>
-                {fndgs.filter(f=>f.sev==="CRITICAL"||f.sev==="HIGH").length} high-priority actions identified
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 6 }}>Expert System Findings & Recommendations</div>
+              <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 32, fontWeight: 300, color: "var(--ink)", marginBottom: 24, letterSpacing: "-.01em" }}>
+                {fndgs.filter(f => f.sev === "CRITICAL" || f.sev === "HIGH").length} high-priority actions identified
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:1,background:"var(--line)",borderRadius:4,overflow:"hidden",marginBottom:24}}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "var(--line)", borderRadius: 4, overflow: "hidden", marginBottom: 24 }}>
               {[
-                {label:"Critical",val:fndgs.filter(f=>f.sev==="CRITICAL").length,col:"var(--warn)"},
-                {label:"High",val:fndgs.filter(f=>f.sev==="HIGH").length,col:"var(--amber)"},
-                {label:"Medium",val:fndgs.filter(f=>f.sev==="MEDIUM").length,col:"var(--blue)"},
-                {label:"Info",val:fndgs.filter(f=>f.sev==="INFO").length,col:"var(--g600)"},
-              ].map(c=>(
-                <div key={c.label} style={{background:"var(--white)",padding:"14px 20px",display:"flex",alignItems:"center",gap:14}}>
-                  <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:36,fontWeight:300,color:c.col,lineHeight:1}}>{c.val}</div>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,letterSpacing:".08em",textTransform:"uppercase",color:"var(--muted)"}}>{c.label}</div>
+                { label: "Critical", val: fndgs.filter(f => f.sev === "CRITICAL").length, col: "var(--warn)" },
+                { label: "High", val: fndgs.filter(f => f.sev === "HIGH").length, col: "var(--amber)" },
+                { label: "Medium", val: fndgs.filter(f => f.sev === "MEDIUM").length, col: "var(--blue)" },
+                { label: "Info", val: fndgs.filter(f => f.sev === "INFO").length, col: "var(--g600)" },
+              ].map(c => (
+                <div key={c.label} style={{ background: "var(--white)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 36, fontWeight: 300, color: c.col, lineHeight: 1 }}>{c.val}</div>
+                  <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)" }}>{c.label}</div>
                 </div>
               ))}
             </div>
-            {fndgs.map((f,i)=>(
-              <div key={i} className={`finding f-${f.sev}`}>
-                <div style={{display:"flex",alignItems:"center",marginBottom:9}}>
+            {fndgs.map((f, i) => (
+              <div key={i} className={`finding f-${f.sev}`} style={{ position: "relative" }}>
+                {f.source === 'ML' && (
+                  <div style={{ position: "absolute", top: 12, right: 16, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 12 }}>✨</span>
+                    <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--g500)", fontWeight: 600 }}>ML-POWERED</span>
+                    {f.confidence && <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--muted)" }}>{f.confidence}%</span>}
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", marginBottom: 9 }}>
                   <span className={`f-badge fb-${f.sev}`}>{f.sev}</span>
                   <span className="f-scope">{f.scope}</span>
                   <span className="f-cat">{f.cat}</span>
@@ -2713,8 +3343,9 @@ export default function App() {
               </div>
             ))}
 
-            <div style={{marginTop:32,textAlign:"center"}}>
-              <button className="btn-hero" style={{background:"var(--g600)"}} onClick={()=>setPage("ai")}>
+
+            <div style={{ marginTop: 32, textAlign: "center" }}>
+              <button className="btn-hero" style={{ background: "var(--g600)" }} onClick={() => setPage("ai")}>
                 Ask the AI Assistant →
               </button>
             </div>
@@ -2722,7 +3353,7 @@ export default function App() {
         </div>
 
         <footer className="footer">
-          <div className="footer-bottom" style={{borderTop:"none",paddingTop:0}}>
+          <div className="footer-bottom" style={{ borderTop: "none", paddingTop: 0 }}>
             <div className="footer-copy">© 2025 Carbonaire · Carbon footprint assessment for IT and technology organizations.</div>
             <div className="footer-copy">Emission factors sourced from peer-reviewed datasets.</div>
           </div>
@@ -2734,90 +3365,90 @@ export default function App() {
   /* ── AI ADVISOR PAGE ─────────────────────────────────────────────── */
   if (page === "ai") {
     return (
-    <>
-      <style>{GLOBAL_CSS}</style>
-      {showSignup && <SignUpModal onClose={()=>setShowSignup(false)}/>}
-      <nav className="nav-bar" style={{background:"rgba(7,26,20,.7)",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-        <div className="nav-logo" style={{color:"#E8F7F3"}} onClick={()=>setPage("home")}>
-          <div className="nav-hex"><span>C</span></div>
-          <span style={{color:"#E8F7F3"}}>Carbonaire</span>
-        </div>
-        <div className="nav-links">
-          <button className="nav-link" onClick={()=>setPage("home")}>Home</button>
-          <button className="nav-link" onClick={goCalculator}>Calculator</button>
-          {result&&<button className="nav-link" onClick={()=>setPage("results")}>Results</button>}
-          <button className="nav-signup" onClick={()=>setShowSignup(true)}>Sign Up</button>
-        </div>
-      </nav>
+      <>
+        <style>{GLOBAL_CSS}</style>
+        {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
+        <nav className="nav-bar" style={{ background: "rgba(7,26,20,.7)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
+          <div className="nav-logo" style={{ color: "#E8F7F3" }} onClick={() => setPage("home")}>
+            <div className="nav-hex"><span>C</span></div>
+            <span style={{ color: "#E8F7F3" }}>Carbonaire</span>
+          </div>
+          <div className="nav-links">
+            <button className="nav-link" onClick={() => setPage("home")}>Home</button>
+            <button className="nav-link" onClick={goCalculator}>Calculator</button>
+            {result && <button className="nav-link" onClick={() => setPage("results")}>Results</button>}
+            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+          </div>
+        </nav>
 
-      <div className="ai-section">
-        <div className="ai-header">
-          <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".18em",textTransform:"uppercase",color:"var(--g300)",marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
-            <span style={{display:"block",width:28,height:1,background:"var(--g400)"}}/>
-            AI Assistant
-          </div>
-          <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:44,fontWeight:300,color:"#E8F7F3",letterSpacing:"-.02em",marginBottom:10}}>
-            Ask anything about carbon and emissions
-          </div>
-          <div style={{fontSize:16,color:"rgba(240,237,214,.5)",maxWidth:560}}>
-            Ask about emission sources, reduction strategies, what your results mean, or anything else sustainability-related.
-          </div>
-        </div>
-
-        <div className="ai-body">
-          <div className="chat-container">
-            <div className="chat-top">
-              <div className="chat-top-dot"/>
-              <div className="chat-top-label">Carbonaire Assistant · Active</div>
-              {result&&<div style={{marginLeft:"auto",fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"rgba(255,255,255,.3)",letterSpacing:".06em",textTransform:"uppercase"}}>
-                Context: {form.company||"Your Co"} · {result.intensity.toFixed(2)} tCO2e/Rs Cr · {result.band.band}
-              </div>}
+        <div className="ai-section">
+          <div className="ai-header">
+            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: "var(--g300)", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ display: "block", width: 28, height: 1, background: "var(--g400)" }} />
+              AI Assistant
             </div>
-            <div className="chat-messages">
-              {msgs.map((m,i)=>(
-                <div key={i} className={`cmsg ${m.role}`}>
-                  <div className="cmsg-who">{m.role==="ai"?"Carbonaire AI":"You"}</div>
-                  <div className="cmsg-bubble">{m.text}</div>
-                </div>
-              ))}
-              {typing&&(
-                <div className="cmsg ai">
-                  <div className="cmsg-who">Carbonaire AI</div>
-                  <div className="cmsg-bubble"><div className="typing"><span className="tdot"/><span className="tdot"/><span className="tdot"/></div></div>
+            <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 44, fontWeight: 300, color: "#E8F7F3", letterSpacing: "-.02em", marginBottom: 10 }}>
+              Ask anything about carbon and emissions
+            </div>
+            <div style={{ fontSize: 16, color: "rgba(240,237,214,.5)", maxWidth: 560 }}>
+              Ask about emission sources, reduction strategies, what your results mean, or anything else sustainability-related.
+            </div>
+          </div>
+
+          <div className="ai-body">
+            <div className="chat-container">
+              <div className="chat-top">
+                <div className="chat-top-dot" />
+                <div className="chat-top-label">Carbonaire Assistant · Active</div>
+                {result && <div style={{ marginLeft: "auto", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "rgba(255,255,255,.3)", letterSpacing: ".06em", textTransform: "uppercase" }}>
+                  Context: {form.company || "Your Co"} · {result.intensity.toFixed(2)} tCO2e/Rs Cr · {result.band.band}
+                </div>}
+              </div>
+              <div className="chat-messages">
+                {msgs.map((m, i) => (
+                  <div key={i} className={`cmsg ${m.role}`}>
+                    <div className="cmsg-who">{m.role === "ai" ? "Carbonaire AI" : "You"}</div>
+                    <div className="cmsg-bubble">{m.text}</div>
+                  </div>
+                ))}
+                {typing && (
+                  <div className="cmsg ai">
+                    <div className="cmsg-who">Carbonaire AI</div>
+                    <div className="cmsg-bubble"><div className="typing"><span className="tdot" /><span className="tdot" /><span className="tdot" /></div></div>
+                  </div>
+                )}
+                <div ref={chatRef} />
+              </div>
+              <div className="chat-input-bar">
+                <input className="chat-input" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} placeholder="Ask about your results, how to reduce emissions, what numbers mean…" />
+                <button className="chat-send" onClick={sendChat}>Send</button>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div className="ai-side-card">
+                <div className="ai-side-title">Suggested Questions</div>
+                {["What does my result mean?", "How do I reduce my electricity emissions?", "What is Scope 1, 2 and 3?", "Should I move to cloud to cut emissions?", "How does renewable energy help?", "What's the industry average for IT companies?", "Which emission source should I tackle first?", "How do servers affect my footprint?"].map(q => (
+                  <button key={q} className="ai-chip" onClick={() => setChatInput(q)}>{q}</button>
+                ))}
+              </div>
+              {result && (
+                <div className="ai-side-card">
+                  <div className="ai-side-title">Your Analysis Summary</div>
+                  <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "rgba(255,255,255,.4)", lineHeight: 2 }}>
+                    <div>Intensity: <span style={{ color: result.band.col }}>{result.intensity.toFixed(2)} tCO2e/Rs Cr</span></div>
+                    <div>Band: <span style={{ color: result.band.col }}>{result.band.band}</span></div>
+                    <div>Annual: <span style={{ color: "rgba(255,255,255,.7)" }}>{result.ann.toFixed(1)} tCO2e</span></div>
+                    <div>Findings: <span style={{ color: "rgba(255,255,255,.7)" }}>{fList.length} total, {fList.filter(f => f.sev === "CRITICAL" || f.sev === "HIGH").length} priority</span></div>
+                  </div>
                 </div>
               )}
-              <div ref={chatRef}/>
             </div>
-            <div className="chat-input-bar">
-              <input className="chat-input" value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder="Ask about your results, how to reduce emissions, what numbers mean…"/>
-              <button className="chat-send" onClick={sendChat}>Send</button>
-            </div>
-          </div>
-
-          <div style={{display:"flex",flexDirection:"column",gap:16}}>
-            <div className="ai-side-card">
-              <div className="ai-side-title">Suggested Questions</div>
-              {["What does my result mean?","How do I reduce my electricity emissions?","What is Scope 1, 2 and 3?","Should I move to cloud to cut emissions?","How does renewable energy help?","What's the industry average for IT companies?","Which emission source should I tackle first?","How do servers affect my footprint?"].map(q=>(
-                <button key={q} className="ai-chip" onClick={()=>setChatInput(q)}>{q}</button>
-              ))}
-            </div>
-            {result&&(
-              <div className="ai-side-card">
-                <div className="ai-side-title">Your Analysis Summary</div>
-                <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,.4)",lineHeight:2}}>
-                  <div>Intensity: <span style={{color:result.band.col}}>{result.intensity.toFixed(2)} tCO2e/Rs Cr</span></div>
-                  <div>Band: <span style={{color:result.band.col}}>{result.band.band}</span></div>
-                  <div>Annual: <span style={{color:"rgba(255,255,255,.7)"}}>{result.ann.toFixed(1)} tCO2e</span></div>
-                  <div>Findings: <span style={{color:"rgba(255,255,255,.7)"}}>{fList.length} total, {fList.filter(f=>f.sev==="CRITICAL"||f.sev==="HIGH").length} priority</span></div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
-      </div>
-    </>
-  );
+      </>
+    );
   }
 
-  return <div><style>{GLOBAL_CSS}</style><button onClick={()=>setPage("home")}>Home</button></div>;
+  return <div><style>{GLOBAL_CSS}</style><button onClick={() => setPage("home")}>Home</button></div>;
 }
