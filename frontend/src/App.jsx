@@ -1060,6 +1060,58 @@ const GLOBAL_CSS = `
   .w-full { width: 100%; }
   .text-right { text-align: right; }
   .text-center { text-align: center; }
+
+  /* SIMULATION PAGE */
+  .sim-page { min-height: 100vh; background: var(--off); padding-top: 80px; }
+  .sim-header { background: linear-gradient(135deg, var(--g900) 0%, var(--g800) 100%); padding: 56px 80px 48px; }
+  .sim-body { max-width: 1200px; margin: 0 auto; padding: 48px 80px 80px; display: grid; grid-template-columns: 340px 1fr; gap: 28px; }
+  
+  .sim-ctrl-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--rl); padding: 24px; box-shadow: var(--sh); position: sticky; top: 100px; }
+  .sim-ctrl-title { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; }
+  
+  .sim-lever { margin-bottom: 24px; }
+  .sim-lever-head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .sim-lever-label { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: var(--ink2); }
+  .sim-lever-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--g600); font-weight: 500; }
+  
+  .sim-range { width: 100%; height: 4px; background: var(--g100); border-radius: 2px; appearance: none; outline: none; transition: background .2s; }
+  .sim-range::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; background: var(--g500); border-radius: 50%; cursor: pointer; border: 2px solid var(--white); box-shadow: var(--sh); transition: transform .1s; }
+  .sim-range::-webkit-slider-thumb:hover { transform: scale(1.1); }
+  
+  .sim-impact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .sim-impact-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--rl); padding: 24px; box-shadow: var(--sh); display: flex; flex-direction: column; }
+  .sim-impact-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .sim-impact-val { font-family: 'Cormorant Garamond', serif; font-size: 48px; font-weight: 300; line-height: 1; margin-bottom: 4px; }
+  .sim-impact-unit { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+  
+  .sim-comparison { background: var(--white); border: 1px solid var(--line); border-radius: var(--rl); overflow: hidden; box-shadow: var(--sh); }
+  .sim-comp-header { padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--g50); display: flex; justify-content: space-between; align-items: center; }
+  .sim-comp-title { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  
+  .sim-viz { padding: 32px; display: grid; grid-template-columns: 1fr 40px 1fr; gap: 24px; align-items: center; }
+  .sim-viz-col { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .sim-viz-label { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .sim-arrow { font-size: 24px; color: var(--line); text-align: center; }
+  
+  .sim-saving-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #EEF5EB; border: 1px solid #C5E0B4; border-radius: 99px; color: #28541C; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
+
+  @keyframes countUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-count { animation: countUp 0.5s ease-out forwards; }
+
+  .btn-sim-apply { margin-top: 12px; width: 100%; background: var(--g600); color: #fff; border: none; padding: 12px; border-radius: var(--r); font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: background .15s; }
+  .btn-sim-apply:hover { background: var(--g700); }
+
+  /* RESULTS TABS & SCORECARD */
+  .res-tabs { display: flex; gap: 4px; background: #e0eee8; padding: 4px; border-radius: 8px; margin: 0 auto 32px; width: fit-content; }
+  .res-tab-btn { border: none; background: none; padding: 10px 24px; font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; color: var(--g700); cursor: pointer; border-radius: 6px; transition: all .2s; letter-spacing: .05em; text-transform: uppercase; }
+  .res-tab-btn.active { background: var(--white); color: var(--ink); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+  .exec-scorecard { background: var(--white); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--sh); margin-bottom: 32px; display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .exec-item { padding: 32px; border-right: 1px solid var(--line); text-align: center; }
+  .exec-item:last-child { border-right: none; }
+  .exec-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 12px; }
+  .exec-val { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; line-height: 1; color: var(--ink); }
+  .exec-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 8px; }
 `;
 
 /* ── CALCULATION ENGINE ──────────────────────────────────────────────────────── */
@@ -1107,17 +1159,54 @@ function calc(d) {
 
 function findings(r, d) {
   const f = [];
-  const add = (sev,scope,cat,msg,rec) => f.push({sev,scope,cat,msg,rec});
-  if ((d.diesel||0)>=1000) add("CRITICAL","Scope 1","Diesel Generator",`Critical diesel use: ${d.diesel} L/month = ${r.bdown.Diesel.toFixed(2)} tCO2e/month.`,"Switch to solar with battery backup. Audit all generator idle runtimes.");
-  else if ((d.diesel||0)>=500) add("HIGH","Scope 1","Diesel Generator",`Elevated diesel at ${d.diesel} L/month.`,"Add battery backup systems to reduce generator dependency. Track runtime hours and cut non-essential loads during outages.");
-  if ((d.renewable||0)<10) add("HIGH","Scope 2","Renewable Energy","Renewable share under 10%. Electricity is your highest-leverage reduction lever.","Switch some or all of your electricity to renewables. Rooftop solar or green energy tariffs from your provider can cut this directly. Even 25% renewable reduces your electricity footprint by 25%.");
-  else if ((d.renewable||0)>=50) add("INFO","Scope 2","Renewable Energy",`Strong renewable mix at ${d.renewable}%. Above sector average.`,"Good work. Target 100% renewable as the next milestone.");
-  if (r.tot>0 && r.s2/r.tot>0.6) add("HIGH","Scope 2","Electricity",`Electricity is ${(r.s2/r.tot*100).toFixed(1)}% of your total. The dominant source.`,"Commission an energy audit. Upgrade to energy-efficient servers, enforce device sleep policies, and check your cooling setup.");
-  if ((d.desktops||0)>(d.laptops||0)*.5&&(d.desktops||0)>10) add("MEDIUM","Scope 2","Device Fleet",`${d.desktops} desktops consume roughly 3x more power than equivalent laptops.`,"Replace desktops with laptops in your next hardware refresh. Estimated reduction: 20 to 30% on device-related emissions.");
-  if ((!d.cloud||d.cloud==="none")&&(d.servers||0)>5) add("MEDIUM","Scope 3","Cloud Migration",`${d.servers} on-premise servers with no cloud workloads.`,"Consider migrating some workloads to cloud. Large cloud providers run their infrastructure more efficiently than typical company server rooms.");
+  const gef = GEF[d.state] || GEF.default;
+  const dh = (d.hours || 8) * 22;
+  
+  const add = (sev,scope,cat,msg,rec,simData=null) => f.push({sev,scope,cat,msg,rec,simData});
+
+  // Scope 1: Diesel
+  if ((d.diesel||0)>=1000) {
+    const red = r.bdown.Diesel * 0.4 * 12; // 40% reduction impact
+    add("CRITICAL","Scope 1","Diesel Generator",`Critical diesel use: ${d.diesel} L/month = ${r.bdown.Diesel.toFixed(2)} tCO2e/month.`,
+        "Switch to solar with battery backup. Audit all generator idle runtimes.",
+        { reduction: red, cost: red * 8.5 * 100, benefit: "Massive reduction in scope 1 emissions and diesel procurement costs." });
+  } else if ((d.diesel||0)>=500) {
+    const red = r.bdown.Diesel * 0.2 * 12;
+    add("HIGH","Scope 1","Diesel Generator",`Elevated diesel at ${d.diesel} L/month.`,
+        "Add battery backup systems to reduce generator dependency. Track runtime hours and cut non-essential loads during outages.",
+        { reduction: red, cost: red * 8.5 * 100, benefit: "Improves operational resilience and reduces scope 1 footprint." });
+  }
+
+  // Scope 2: Electricity / Renewables
+  if ((d.renewable||0)<10) {
+    const target = 40;
+    const red = (d.elec || 0) * (target/100) * gef * 12;
+    add("HIGH","Scope 2","Renewable Energy","Renewable share under 10%. Electricity is your highest-leverage reduction lever.",
+        "Switch some or all of your electricity to renewables. Rooftop solar or green energy tariffs from your provider can cut this directly.",
+        { reduction: red, cost: red * 9.0 * 100, benefit: "Directly slashes your biggest emission source and hedges against grid price hikes." });
+  }
+
+  // Scope 2: Devices
+  if ((d.desktops||0)>(d.laptops||0)*.5&&(d.desktops||0)>10) {
+    const converted = d.desktops * 0.5;
+    const red = converted * 0.14 * dh * gef * 12 / 1000; // 0.14kW difference
+    add("MEDIUM","Scope 2","Device Fleet",`${d.desktops} desktops consume roughly 3x more power than equivalent laptops.`,
+        "Replace desktops with laptops in your next hardware refresh. Estimated reduction: 20 to 30% on device-related emissions.",
+        { reduction: red, cost: red * 8.0 * 100, benefit: "Lowers your Scope 2 device emissions and improves employee mobility." });
+  }
+
+  // Scope 3: Cloud
+  if ((!d.cloud||d.cloud==="none")&&(d.servers||0)>5) {
+    const red = d.servers * 0.15 * 24 * 30 * gef * 0.3 * 12 / 1000; // 30% gain
+    add("MEDIUM","Scope 3","Cloud Migration",`${d.servers} on-premise servers with no cloud workloads.`,
+        "Consider migrating some workloads to cloud. Large cloud providers run their infrastructure more efficiently.",
+        { reduction: red, cost: red * 10.0 * 100, benefit: "Shifts maintenance overhead and improves infrastructure carbon efficiency." });
+  }
+
   if (r.intensity>BENCHMARK*1.5) add("CRITICAL","Overall","Benchmark",`Your emission intensity of ${r.intensity.toFixed(2)} tCO2e/Rs Cr is ${((r.intensity/BENCHMARK-1)*100).toFixed(0)}% above the sector average.`,"Set a clear reduction target and focus on your two biggest emission sources first.");
   else if (r.intensity>BENCHMARK) add("HIGH","Overall","Benchmark",`Your intensity of ${r.intensity.toFixed(2)} tCO2e/Rs Cr is above the Indian IT sector average of ${BENCHMARK}.`,"Set annual reduction targets. Electricity-related actions tend to deliver the fastest results.");
   else if (r.intensity<=2.4) add("INFO","Overall","Benchmark",`Excellent: ${r.intensity.toFixed(2)} tCO2e/Rs Cr. You are in the top quartile for Indian IT companies.`,"Maintain this trajectory. Consider making your results public as a differentiator with clients.");
+
   return f.sort((a,b)=>({CRITICAL:0,HIGH:1,MEDIUM:2,INFO:3}[a.sev]-{CRITICAL:0,HIGH:1,MEDIUM:2,INFO:3}[b.sev]));
 }
 
@@ -1568,6 +1657,10 @@ export default function App() {
   const [excelFile, setExcelFile]     = useState(null);
   const [excelDrag, setExcelDrag]     = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState({electricity:null, hardware:null, cloud:null, fuel:null});
+  const [simForm, setSimForm]   = useState({ renewable: 0, fleet_refresh: 0, cloud_pct: 0 });
+  const [simResult, setSimResult] = useState(null);
+  const [benefitSim, setBenefitSim] = useState(null); // Active inline recommendation simulation
+  const [resultTab, setResultTab] = useState("summary");
   const excelInputRef = useRef(null);
   const chatRef = useRef(null);
   const topRef  = useRef(null);
@@ -1609,6 +1702,52 @@ export default function App() {
   const handleProcessExcel = () => {
     if (!excelFile) return;
     setInputMode("manual");
+  };
+
+  const goSimulation = () => {
+    setSimForm({
+      renewable: form.renewable || 0,
+      fleet_refresh: 0,
+      cloud_pct: form.cloud === "none" ? 0 : 100
+    });
+    setSimResult(result);
+    setPage("simulation");
+  };
+
+  const updateSim = (key, val) => {
+    const nextSim = { ...simForm, [key]: val };
+    setSimForm(nextSim);
+    
+    // Simple simulation logic
+    const baseline = result;
+    const gef = GEF[form.state] || GEF.default;
+    
+    // Calculate simulated stats
+    const ren = nextSim.renewable / 100;
+    const simS2e = (form.elec || 0) * (1 - ren) * gef;
+    
+    // Fleet refresh: Desktops to Laptops (70% reduction for converted units)
+    const converted = form.desktops * (nextSim.fleet_refresh / 100);
+    const fleetSaving = converted * 0.14 * (form.hours * 22) * gef / 1000;
+    
+    // Cloud: On-prem to Cloud (30% efficiency gain for converted units)
+    const cloudConverted = form.servers * (nextSim.cloud_pct / 100);
+    const cloudSaving = cloudConverted * 15 * 0.3 * gef / 1000; // rough heuristic
+
+    const reduction = (baseline.bdown.Electricity - simS2e) + fleetSaving + cloudSaving;
+    const newTot = baseline.tot - reduction;
+    const newAnn = newTot * 12;
+    const newIntensity = newAnn / Math.max(form.revenue || 1, 0.01);
+    const newBand = BANDS.find(b => newIntensity >= b.min && newIntensity < b.max) || BANDS[3];
+
+    setSimResult({
+      ...baseline,
+      tot: newTot,
+      ann: newAnn,
+      intensity: newIntensity,
+      band: newBand,
+      reduction: reduction * 12 // Annual reduction
+    });
   };
 
  const sendChat=async()=>{
@@ -2390,26 +2529,114 @@ export default function App() {
           </div>
 
           <div className="results-body">
-
-            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:1,background:"var(--line)",borderRadius:8,overflow:"hidden",marginBottom:28,boxShadow:"var(--sh)"}}>
-              {[
-                {label:"Monthly Total",val:tot,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"var(--ink)",pct:100,note:`${(tot*1000).toFixed(1)} kgCO2e`},
-                {label:"Annual Total",val:ann,fmt:v=>v.toFixed(1),unit:"tCO2e / yr",color:"var(--ink)",pct:(ann/(bm.tot||1))*100,note:`Benchmark: ${bm.tot.toFixed(1)} t`},
-                {label:"Scope 1 — Direct",val:s1,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#C05A2C",pct:tot>0?(s1/tot)*100:0,note:`${tot>0?(s1/tot*100).toFixed(1):0}% of total`},
-                {label:"Scope 2 — Electricity",val:s2,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#228F72",pct:tot>0?(s2/tot)*100:0,note:`${tot>0?(s2/tot*100).toFixed(1):0}% of total`},
-                {label:"Scope 3 — Indirect",val:s3,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#2E5A8A",pct:tot>0?(s3/tot)*100:0,note:`${tot>0?(s3/tot*100).toFixed(1):0}% of total`},
-              ].map(k=>(
-                <div key={k.label} style={{background:"var(--white)",padding:"20px 20px 16px"}}>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,letterSpacing:".1em",textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>{k.label}</div>
-                  <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:30,fontWeight:300,color:k.color,lineHeight:1}}>{k.fmt(k.val)}</div>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",marginTop:4}}>{k.unit}</div>
-                  <div style={{marginTop:10,height:5,background:"var(--g100)",borderRadius:99,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${Math.min(k.pct,100)}%`,background:k.color,borderRadius:99}}/>
-                  </div>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",marginTop:5}}>{k.note}</div>
-                </div>
-              ))}
+            
+            <div className="res-tabs">
+              <button className={`res-tab-btn ${resultTab==="summary"?"active":""}`} onClick={()=>setResultTab("summary")}>Summary</button>
+              <button className={`res-tab-btn ${resultTab==="analysis"?"active":""}`} onClick={()=>setResultTab("analysis")}>Detailed Analysis</button>
+              <button className={`res-tab-btn ${resultTab==="actions"?"active":""}`} onClick={()=>setResultTab("actions")}>Action Plan</button>
             </div>
+
+            {resultTab === "summary" && (
+              <div className="fade-up">
+                <div className="exec-scorecard">
+                  <div className="exec-item">
+                    <div className="exec-label">Environmental Grade</div>
+                    <div className="exec-val" style={{color:band.col}}>{band.band.split(" ")[0]}</div>
+                    <div className="exec-sub">Based on {intensity.toFixed(2)} tCO2e/Rs Cr</div>
+                  </div>
+                  <div className="exec-item">
+                    <div className="exec-label">Annual Footprint</div>
+                    <div className="exec-val">{ann.toFixed(1)}</div>
+                    <div className="exec-sub">tCO2e per year total</div>
+                  </div>
+                  <div className="exec-item">
+                    <div className="exec-label">Savings Potential</div>
+                    <div className="exec-val" style={{color:"#2E5A8A"}}>₹{(fndgs.reduce((a,c)=>a+(c.simData?c.simData.cost:0),0)/1000).toFixed(0)}k</div>
+                    <div className="exec-sub">Estimated annual reduction</div>
+                  </div>
+                </div>
+
+                <div style={{display:"grid", gridTemplateColumns:"1.2fr 1.5fr", gap:28, marginBottom:28}}>
+                  <div className="res-card">
+                    <div className="res-card-header"><div className="res-card-title">Performance Benchmark</div></div>
+                    <div className="res-card-body">
+                       <div className="gauge-wrap">
+                        <GaugeSVG value={intensity} max={9} color={band.col}/>
+                        <div className="gauge-value" style={{color:band.col}}>{intensity.toFixed(2)}</div>
+                        <div className="gauge-unit">tCO2e / Rs Cr</div>
+                      </div>
+                      <div style={{marginTop:16, textAlign:"center", fontSize:13, color:"var(--muted)", lineHeight:1.5}}>
+                        Your intensity is <strong>{intensity<=BENCHMARK?`${((BENCHMARK-intensity)/BENCHMARK*100).toFixed(1)}% lower`:`${((intensity-BENCHMARK)/BENCHMARK*100).toFixed(1)}% higher`}</strong> than the Indian IT sector median.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="res-card">
+                    <div className="res-card-header"><div className="res-card-title">Critical Insight</div></div>
+                    <div className="res-card-body">
+                      {fndgs.length > 0 ? (
+                        <div style={{background:"#F2F8EE", border:"1px solid #C5E0B4", borderRadius:8, padding:24, height:"100%", display:"flex", flexDirection:"column", justifyContent:"center"}}>
+                          <div style={{fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"#28541C", textTransform:"uppercase", marginBottom:12}}>Top Priority Action</div>
+                          <div style={{fontFamily:"Cormorant Garamond,serif", fontSize:28, color:"#28541C", lineHeight:1.2, marginBottom:12}}>{fndgs[0].cat}</div>
+                          <div style={{fontSize:15, color:"#4E8A3A", lineHeight:1.5, marginBottom:20}}>{fndgs[0].rec}</div>
+                          <div style={{display:"flex", gap:12}}>
+                            <button className="btn-hero" style={{padding:"8px 16px", fontSize:13}} onClick={()=>{setResultTab("actions"); setBenefitSim(0);}}>
+                              ⚡ Simulate Benefits
+                            </button>
+                            <button className="btn-hero-ghost" style={{padding:"8px 16px", fontSize:13, borderColor:"#C5E0B4", color:"#4E8A3A"}} onClick={()=>setResultTab("actions")}>
+                              View Recommendations
+                            </button>
+                          </div>
+                      </div>
+                      ) : (
+                        <div style={{textAlign:"center", padding:40, color:"var(--muted)"}}>No immediate critical actions identified. Great job!</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="res-card">
+                   <div className="res-card-header"><div className="res-card-title">Scope Proportion Overview</div></div>
+                   <div className="res-card-body">
+                      <div style={{display:"flex", height:40, borderRadius:8, overflow:"hidden", gap:2}}>
+                        {donutData.filter(d=>d.value>0).map(d=>(
+                          <div key={d.label} style={{flex:d.value, background:d.color, display:"flex", alignItems:"center", justifyContent:"center"}}>
+                            {(d.value/tot)>0.1&&<span style={{fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"#fff"}}>{(d.value/tot*100).toFixed(0)}%</span>}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{display:"flex", gap:24, marginTop:16, justifyContent:"center"}}>
+                        {donutData.map(d=>(
+                          <div key={d.label} style={{display:"flex", alignItems:"center", gap:8}}>
+                            <div style={{width:10, height:10, borderRadius:"50%", background:d.color}}/>
+                            <span style={{fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"var(--muted)"}}>{d.label.split("—")[0].trim()}</span>
+                          </div>
+                        ))}
+                      </div>
+                   </div>
+                </div>
+              </div>
+            )}
+
+            {resultTab === "analysis" && (
+              <div className="fade-up">
+                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:1,background:"var(--line)",borderRadius:8,overflow:"hidden",marginBottom:28,boxShadow:"var(--sh)"}}>
+                  {[
+                    {label:"Monthly Total",val:tot,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"var(--ink)",pct:100,note:`${(tot*1000).toFixed(1)} kgCO2e`},
+                    {label:"Annual Total",val:ann,fmt:v=>v.toFixed(1),unit:"tCO2e / yr",color:"var(--ink)",pct:(ann/(bm.tot||1))*100,note:`Benchmark: ${bm.tot.toFixed(1)} t`},
+                    {label:"Scope 1 — Direct",val:s1,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#C05A2C",pct:tot>0?(s1/tot)*100:0,note:`${tot>0?(s1/tot*100).toFixed(1):0}% of total`},
+                    {label:"Scope 2 — Electricity",val:s2,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#228F72",pct:tot>0?(s2/tot)*100:0,note:`${tot>0?(s2/tot*100).toFixed(1):0}% of total`},
+                    {label:"Scope 3 — Indirect",val:s3,fmt:v=>v.toFixed(3),unit:"tCO2e / mo",color:"#2E5A8A",pct:tot>0?(s3/tot)*100:0,note:`${tot>0?(s3/tot*100).toFixed(1):0}% of total`},
+                  ].map(k=>(
+                    <div key={k.label} style={{background:"var(--white)",padding:"20px 20px 16px"}}>
+                      <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,letterSpacing:".1em",textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>{k.label}</div>
+                      <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:30,fontWeight:300,color:k.color,lineHeight:1}}>{k.fmt(k.val)}</div>
+                      <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)",marginTop:4}}>{k.unit}</div>
+                      <div style={{marginTop:10,height:5,background:"var(--g100)",borderRadius:99,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${Math.min(k.pct,100)}%`,background:k.color,borderRadius:99}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
             <div style={{display:"grid",gridTemplateColumns:"220px 220px 1fr",gap:20,marginBottom:20}}>
               <div className="res-card" style={{display:"flex",flexDirection:"column"}}>
@@ -2705,44 +2932,89 @@ export default function App() {
                   Benchmark assumes Indian IT sector average of {BENCHMARK} tCO2e/Rs Cr · S1: 5% · S2: 65% · S3: 30% for a company with Rs {(form.revenue||1).toFixed(1)} Cr revenue.
                 </div>
               </div>
-            </div>
-
-            <div style={{marginBottom:12}}>
-              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".16em",textTransform:"uppercase",color:"var(--muted)",marginBottom:6}}>Expert System Findings & Recommendations</div>
-              <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:32,fontWeight:300,color:"var(--ink)",marginBottom:24,letterSpacing:"-.01em"}}>
-                {fndgs.filter(f=>f.sev==="CRITICAL"||f.sev==="HIGH").length} high-priority actions identified
-              </div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:1,background:"var(--line)",borderRadius:4,overflow:"hidden",marginBottom:24}}>
-              {[
-                {label:"Critical",val:fndgs.filter(f=>f.sev==="CRITICAL").length,col:"var(--warn)"},
-                {label:"High",val:fndgs.filter(f=>f.sev==="HIGH").length,col:"var(--amber)"},
-                {label:"Medium",val:fndgs.filter(f=>f.sev==="MEDIUM").length,col:"var(--blue)"},
-                {label:"Info",val:fndgs.filter(f=>f.sev==="INFO").length,col:"var(--g600)"},
-              ].map(c=>(
-                <div key={c.label} style={{background:"var(--white)",padding:"14px 20px",display:"flex",alignItems:"center",gap:14}}>
-                  <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:36,fontWeight:300,color:c.col,lineHeight:1}}>{c.val}</div>
-                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,letterSpacing:".08em",textTransform:"uppercase",color:"var(--muted)"}}>{c.label}</div>
                 </div>
-              ))}
-            </div>
-            {fndgs.map((f,i)=>(
-              <div key={i} className={`finding f-${f.sev}`}>
-                <div style={{display:"flex",alignItems:"center",marginBottom:9}}>
-                  <span className={`f-badge fb-${f.sev}`}>{f.sev}</span>
-                  <span className="f-scope">{f.scope}</span>
-                  <span className="f-cat">{f.cat}</span>
-                </div>
-                <div className="f-msg">{f.msg}</div>
-                <div className="f-rec">{f.rec}</div>
               </div>
-            ))}
+            )}
 
-            <div style={{marginTop:32,textAlign:"center"}}>
-              <button className="btn-hero" style={{background:"var(--g600)"}} onClick={()=>setPage("ai")}>
-                Ask the AI Assistant →
-              </button>
-            </div>
+            {resultTab === "actions" && (
+              <div className="fade-up">
+                <div style={{marginBottom:12}}>
+                  <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".16em",textTransform:"uppercase",color:"var(--muted)",marginBottom:6}}>Expert System Findings & Recommendations</div>
+                  <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:32,fontWeight:300,color:"var(--ink)",marginBottom:24,letterSpacing:"-.01em"}}>
+                    {fndgs.filter(f=>f.sev==="CRITICAL"||f.sev==="HIGH").length} high-priority actions identified
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:1,background:"var(--line)",borderRadius:4,overflow:"hidden",marginBottom:24}}>
+                  {[
+                    {label:"Critical",val:fndgs.filter(f=>f.sev==="CRITICAL").length,col:"var(--warn)"},
+                    {label:"High",val:fndgs.filter(f=>f.sev==="HIGH").length,col:"var(--amber)"},
+                    {label:"Medium",val:fndgs.filter(f=>f.sev==="MEDIUM").length,col:"var(--blue)"},
+                    {label:"Info",val:fndgs.filter(f=>f.sev==="INFO").length,col:"var(--g600)"},
+                  ].map(c=>(
+                    <div key={c.label} style={{background:"var(--white)",padding:"14px 20px",display:"flex",alignItems:"center",gap:14}}>
+                      <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:36,fontWeight:300,color:c.col,lineHeight:1}}>{c.val}</div>
+                      <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,letterSpacing:".08em",textTransform:"uppercase",color:"var(--muted)"}}>{c.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {fndgs.map((f,i)=>(
+                  <div key={i} className={`finding f-${f.sev}`}>
+                    <div style={{display:"flex",alignItems:"center",marginBottom:9}}>
+                      <span className={`f-badge fb-${f.sev}`}>{f.sev}</span>
+                      <span className="f-scope">{f.scope}</span>
+                      <span className="f-cat">{f.cat}</span>
+                    </div>
+                    <div className="f-msg">{f.msg}</div>
+                    <div className="f-rec">{f.rec}</div>
+                    {f.simData && (
+                      <div style={{marginTop:16, borderTop:"1px solid rgba(0,0,0,0.06)", paddingTop:16}}>
+                        {benefitSim === i ? (
+                          <div className="fade-up" style={{background:"var(--g50)", padding:16, borderRadius:6, border:"1px solid var(--g200)"}}>
+                            <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12}}>
+                              <div style={{fontFamily:"Syne,sans-serif", fontSize:12, fontWeight:700, color:"var(--g700)"}}>Estimated Benefits Analysis</div>
+                              <button onClick={()=>setBenefitSim(null)} style={{background:"none", border:"none", cursor:"pointer", color:"var(--muted)", fontSize:16}}>✕</button>
+                            </div>
+                            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12}}>
+                              <div>
+                                <div style={{fontFamily:"JetBrains Mono,monospace", fontSize:8, color:"var(--muted)", textTransform:"uppercase"}}>Annual Carbon Save</div>
+                                <div style={{fontFamily:"Cormorant Garamond,serif", fontSize:24, color:"var(--g600)", fontWeight:400}}>{f.simData.reduction.toFixed(1)} tCO2e</div>
+                              </div>
+                              <div>
+                                <div style={{fontFamily:"JetBrains Mono,monospace", fontSize:8, color:"var(--muted)", textTransform:"uppercase"}}>Est. Annual Savings</div>
+                                <div style={{fontFamily:"Cormorant Garamond,serif", fontSize:24, color:"#2E5A8A", fontWeight:400}}>₹{(f.simData.cost/1000).toFixed(1)}k</div>
+                              </div>
+                            </div>
+                            <div style={{fontSize:12, color:"var(--ink2)", lineHeight:1.5, fontStyle:"italic"}}>
+                              "{f.simData.benefit}"
+                            </div>
+                          </div>
+                        ) : (
+                          <button 
+                            style={{
+                              background:"var(--white)", border:"1px solid var(--line)", padding:"8px 16px", borderRadius:4,
+                              fontFamily:"Syne,sans-serif", fontSize:11, fontWeight:600, color:"var(--g600)", cursor:"pointer",
+                              display:"flex", alignItems:"center", gap:8, transition:"all 0.2s"
+                            }}
+                            onClick={()=>setBenefitSim(i)}
+                          >
+                            ⚡ Simulate Benefits & Savings
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <div style={{marginTop:48, textAlign:"center", borderTop:"1px solid var(--line)", paddingTop:40}}>
+                  <div style={{fontFamily:"JetBrains Mono,monospace", fontSize:11, color:"var(--muted)", letterSpacing:".1em", textTransform:"uppercase", marginBottom:16}}>Next Logical Step</div>
+                  <div style={{display:"flex", gap:16, justifyContent:"center"}}>
+                    <button className="btn-hero" style={{background:"var(--ink)", boxShadow:"0 12px 32px rgba(10,51,41,0.15)"}} onClick={()=>setPage("ai")}>
+                      Consult AI Advisor →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2752,6 +3024,149 @@ export default function App() {
             <div className="footer-copy">Emission factors sourced from peer-reviewed datasets.</div>
           </div>
         </footer>
+      </>
+    );
+  }
+
+  /* ── SIMULATION PAGE ────────────────────────────────────────────────── */
+  if (page === "simulation" && simResult) {
+    const annSaving = result.ann - simResult.ann;
+    const monSaving = result.tot - simResult.tot;
+    const costSavings = annSaving * 8.5 * 100; // Heuristic: Rs 8.5/kWh or equiv carbon cost
+
+    return (
+      <>
+        <style>{GLOBAL_CSS}</style>
+        <nav className="nav-bar scrolled">
+          <div className="nav-logo" onClick={() => setPage("home")}>
+            <div className="nav-hex"><span>C</span></div>
+            Carbonaire
+          </div>
+          <div className="nav-links">
+            <button className="nav-link" onClick={() => setPage("results")}>Back to Results</button>
+            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+          </div>
+        </nav>
+
+        <div className="sim-page fade-up">
+          <div className="sim-header">
+            <div className="calc-header-inner">
+              <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,letterSpacing:".16em",textTransform:"uppercase",color:"var(--g300)",marginBottom:12}}>Strategy & Impact Simulation</div>
+              <div className="calc-title">Optimise Your Carbon Pathway</div>
+              <div className="calc-sub">Adjust the strategic levers below to see how different interventions impact your annual emissions and operational costs.</div>
+            </div>
+          </div>
+
+          <div className="sim-body">
+            <div className="sim-ctrl-card">
+              <div className="sim-ctrl-title">Strategic Levers</div>
+              
+              <div className="sim-lever">
+                <div className="sim-lever-head">
+                  <span className="sim-lever-label">Renewable Energy</span>
+                  <span className="sim-lever-val">{simForm.renewable}%</span>
+                </div>
+                <input type="range" className="sim-range" min="0" max="100" value={simForm.renewable} onChange={e => updateSim("renewable", parseInt(e.target.value))} />
+                <div style={{fontSize:9,color:"var(--muted)",marginTop:6}}>Transition grid power to solar/wind.</div>
+              </div>
+
+              <div className="sim-lever">
+                <div className="sim-lever-head">
+                  <span className="sim-lever-label">Fleet Transition</span>
+                  <span className="sim-lever-val">{simForm.fleet_refresh}%</span>
+                </div>
+                <input type="range" className="sim-range" min="0" max="100" value={simForm.fleet_refresh} onChange={e => updateSim("fleet_refresh", parseInt(e.target.value))} />
+                <div style={{fontSize:9,color:"var(--muted)",marginTop:6}}>Move from desktops to efficient laptops.</div>
+              </div>
+
+              <div className="sim-lever">
+                <div className="sim-lever-head">
+                  <span className="sim-lever-label">Cloud Migration</span>
+                  <span className="sim-lever-val">{simForm.cloud_pct}%</span>
+                </div>
+                <input type="range" className="sim-range" min="0" max="100" value={simForm.cloud_pct} onChange={e => updateSim("cloud_pct", parseInt(e.target.value))} />
+                <div style={{fontSize:9,color:"var(--muted)",marginTop:6}}>Migrate on-prem servers to efficiency-first cloud.</div>
+              </div>
+
+              <button className="btn-sim-apply" onClick={() => setPage("ai")}>Discuss Strategy with AI →</button>
+            </div>
+
+            <div className="sim-main">
+              <div className="sim-impact-grid">
+                <div className="sim-impact-card">
+                  <div className="sim-impact-label">Annual Emission Reduction</div>
+                  <div className="sim-impact-val animate-count" key={annSaving} style={{color:"var(--g600)"}}>{annSaving.toFixed(1)}</div>
+                  <div className="sim-impact-unit">tCO2e saved per year</div>
+                </div>
+                <div className="sim-impact-card">
+                  <div className="sim-impact-label">Estimated Annual Savings</div>
+                  <div className="sim-impact-val animate-count" key={costSavings} style={{color:"#2E5A8A"}}>₹{(costSavings/1000).toFixed(1)}k</div>
+                  <div className="sim-impact-unit">Direct operational cost reduction</div>
+                </div>
+              </div>
+
+              <div className="sim-comparison">
+                <div className="sim-comp-header">
+                  <div className="sim-comp-title">Emissions Trajectory Comparison</div>
+                  <div className="sim-saving-badge">-{((annSaving/result.ann)*100).toFixed(1)}% Impact</div>
+                </div>
+                <div className="sim-viz">
+                  <div className="sim-viz-col">
+                    <div className="sim-viz-label">Current State</div>
+                    <DonutChart data={[
+                      {label:"S1", value:result.s1, color:"#C05A2C"},
+                      {label:"S2", value:result.s2, color:"#228F72"},
+                      {label:"S3", value:result.s3, color:"#2E5A8A"},
+                    ]} size={120} />
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:24,color:"var(--ink)"}}>{result.ann.toFixed(1)}</div>
+                      <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>tCO2e / year</div>
+                    </div>
+                  </div>
+
+                  <div className="sim-arrow">→</div>
+
+                  <div className="sim-viz-col">
+                    <div className="sim-viz-label">Optimised State</div>
+                    <DonutChart data={[
+                      {label:"S1", value:simResult.s1, color:"#C05A2C"},
+                      {label:"S2", value:simResult.s2 - (annSaving/12), color:"var(--g400)"},
+                      {label:"S3", value:simResult.s3, color:"#2E5A8A"},
+                    ]} size={120} />
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:24,color:"var(--g600)"}}>{simResult.ann.toFixed(1)}</div>
+                      <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"var(--muted)"}}>tCO2e / year</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{padding:"20px 32px", background:"var(--g50)", borderTop:"1px solid var(--line)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontFamily:"Syne,sans-serif",fontSize:14,fontWeight:600,color:"var(--ink2)"}}>New Intensity Band: <span style={{color:simResult.band.col}}>{simResult.band.band}</span></div>
+                      <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Simulated Intensity: {simResult.intensity.toFixed(2)} tCO2e/Rs Cr</div>
+                    </div>
+                    {simResult.intensity < result.intensity && (
+                      <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"#28541C",fontWeight:600}}>
+                        🏆 BEATING INDUSTRY AVERAGE
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{marginTop:28, background:"#FDF8EC", border:"1px solid #F3E5AB", borderRadius:8, padding:20, display:"flex", gap:16}}>
+                <div style={{fontSize:24}}>💡</div>
+                <div>
+                  <div style={{fontFamily:"Syne,sans-serif",fontSize:14,fontWeight:600,color:"#B08020"}}>Insight: Fastest Lever</div>
+                  <div style={{fontSize:13,color:"#8A6D3B",lineHeight:1.5,marginTop:4}}>
+                    Transitioning to 100% renewable energy for your electricity alone would reduce your annual footprint by {((result.s2/result.tot)*100).toFixed(0)}%. This is the most cost-effective first step for organizations in {form.state.replace("_"," ")}.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </>
     );
   }
