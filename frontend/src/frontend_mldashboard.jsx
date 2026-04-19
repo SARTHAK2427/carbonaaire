@@ -28,10 +28,10 @@ import { useState, useEffect } from "react";
 // ─── Colour helpers ───────────────────────────────────────────
 
 const PRIORITY_STYLES = {
-  HIGH:    { border: "#DC2626", bg: "#FEF2F2", text: "#991B1B", dot: "#DC2626", label: "High priority" },
-  MEDIUM:  { border: "#D97706", bg: "#FFFBEB", text: "#92400E", dot: "#D97706", label: "Medium priority" },
-  LOW:     { border: "#16A34A", bg: "#F0FDF4", text: "#14532D", dot: "#16A34A", label: "Low priority" },
-  MAINTAIN:{ border: "#2563EB", bg: "#EFF6FF", text: "#1E3A8A", dot: "#2563EB", label: "Maintain" },
+  HIGH: { border: "#DC2626", bg: "#FEF2F2", text: "#991B1B", dot: "#DC2626", label: "High priority" },
+  MEDIUM: { border: "#D97706", bg: "#FFFBEB", text: "#92400E", dot: "#D97706", label: "Medium priority" },
+  LOW: { border: "#16A34A", bg: "#F0FDF4", text: "#14532D", dot: "#16A34A", label: "Low priority" },
+  MAINTAIN: { border: "#2563EB", bg: "#EFF6FF", text: "#1E3A8A", dot: "#2563EB", label: "Maintain" },
 };
 
 function priorityStyle(level) {
@@ -71,7 +71,7 @@ function ScopeIcon({ scope }) {
 }
 
 function DeltaChip({ delta }) {
-  const up   = delta.direction === "increased";
+  const up = delta.direction === "increased";
   const good = delta.is_positive;
   const colour = good ? "#16A34A" : "#DC2626";
   return (
