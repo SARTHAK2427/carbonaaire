@@ -1,0 +1,152 @@
+[
+  {
+    "id": 1,
+    "question": "how do I reduce my electricity emissions",
+    "keywords": ["electricity", "scope 2", "reduce", "lower", "cut", "grid", "power"],
+    "answer": "Your Scope 2 electricity emissions are usually 70-80% of an IT company's total footprint. Three actions with the highest impact: first, switch to a green energy tariff through your DISCOM under India's Green Energy Open Access policy. Second, purchase RECs on the Indian Energy Exchange — 1 REC covers 1 MWh. Third, install rooftop solar if you own your premises. Together these can reduce Scope 2 by up to 90%."
+  },
+  {
+    "id": 2,
+    "question": "what is scope 1 scope 2 scope 3",
+    "keywords": ["scope 1", "scope 2", "scope 3", "what is scope", "difference", "types"],
+    "answer": "Scope 1 is direct emissions from fuel you burn yourself — diesel generators, company vehicles, LPG. Scope 2 is indirect emissions from electricity you purchase from the grid. Scope 3 is everything else — cloud computing, business travel, employee commuting, purchased services. For IT companies, Scope 2 is almost always the largest category."
+  },
+  {
+    "id": 3,
+    "question": "how to reduce server and data center emissions",
+    "keywords": ["server", "data center", "rack", "PUE", "on-premise", "cooling", "hardware"],
+    "answer": "For on-premise servers: implement hot/cold aisle containment — this cuts cooling energy 15-30%. Raise server inlet temperature to 27°C per ASHRAE A2 standard. Virtualise underutilised servers using Proxmox or VMware — most SME servers run at only 10-20% utilisation. Migrate batch workloads to AWS Mumbai or Azure India which have cleaner energy mixes than most Indian DISCOMs."
+  },
+  {
+    "id": 4,
+    "question": "what does my emission band mean",
+    "keywords": ["band", "rating", "excellent", "good", "average", "above average", "critical", "intensity", "benchmark"],
+    "answer": "Your emission band compares your carbon intensity — tCO2e per Rs Crore of revenue — against the Indian IT sector average of 2.1 tCO2e per Rs Crore. EXCELLENT means top 20%. GOOD means below average. ABOVE AVERAGE means clear room to improve. CRITICAL means your emissions are more than double the sector average and immediate action is needed."
+  },
+  {
+    "id": 5,
+    "question": "what are RECs and how do they work",
+    "keywords": ["REC", "renewable energy certificate", "IEX", "green certificate", "offset"],
+    "answer": "RECs are Renewable Energy Certificates traded on the Indian Energy Exchange. Each REC represents 1 MWh of electricity from renewable sources. When you buy a REC, you can claim that 1 MWh of your consumption is matched by clean energy. For IT companies in India, RECs cost Rs 1,000 to 2,500 per MWh and are the fastest way to address Scope 2 without changing physical infrastructure."
+  },
+  {
+    "id": 6,
+    "question": "how does cloud computing affect my emissions",
+    "keywords": ["cloud", "AWS", "Azure", "GCP", "cloud emissions", "saas", "hosted"],
+    "answer": "Cloud computing falls under Scope 3. AWS Mumbai, Azure India Central, and GCP Mumbai all have varying grid emission factors. Hyperscalers run PUE of 1.1 to 1.2 versus an average Indian on-premise server room at 1.8 to 2.2 — so migrating to cloud often reduces total emissions even though it adds Scope 3."
+  },
+  {
+    "id": 7,
+    "question": "what is PUE and why does it matter",
+    "keywords": ["PUE", "power usage effectiveness", "data center efficiency", "cooling overhead"],
+    "answer": "PUE is Power Usage Effectiveness — it measures how efficiently a data center uses energy. PUE of 1.0 is perfect. PUE of 2.0 means for every 1 watt of computing, 1 extra watt is wasted on cooling. Average Indian SME server rooms run PUE 1.8 to 2.2. Improving PUE from 2.0 to 1.5 reduces server electricity consumption by 25%."
+  },
+  {
+    "id": 8,
+    "question": "should I replace desktops with laptops",
+    "keywords": ["desktop", "laptop", "device", "endpoint", "workstation", "computer"],
+    "answer": "Yes — a desktop with monitor consumes 150 to 300 watts. A laptop does the same work at 15 to 45 watts — roughly 5 to 7 times more efficient. If you have 50 desktops running 8 hours a day, switching to laptops saves approximately 3 to 6 tCO2e per year. Make this change at your next hardware refresh cycle."
+  },
+  {
+    "id": 9,
+    "question": "how do I reduce business travel emissions",
+    "keywords": ["travel", "flights", "business travel", "scope 3", "commute", "aviation"],
+    "answer": "A return flight Mumbai to Delhi emits roughly 0.15 tCO2e per passenger. Three steps: set a formal travel policy requiring virtual meetings for trips under 500 km. Set a per-employee annual flight carbon budget. When travel is unavoidable, choose economy class — business class emits 2 to 3 times more per seat."
+  },
+  {
+    "id": 10,
+    "question": "what is carbon intensity and how is it calculated",
+    "keywords": ["intensity", "tCO2e", "per crore", "calculation", "formula", "how calculated"],
+    "answer": "Carbon intensity is total annual emissions in tCO2e divided by annual revenue in Rs Crore. If your company emits 45 tCO2e and has Rs 10 Crore revenue, your intensity is 4.5 tCO2e per Rs Crore. The Indian IT sector average is approximately 2.1 tCO2e per Rs Crore."
+  },
+  {
+    "id": 11,
+    "question": "what should I do first to reduce emissions",
+    "keywords": ["first", "start", "priority", "most important", "biggest impact", "where to begin"],
+    "answer": "Always start with your largest emission source. For IT companies this is almost always Scope 2 electricity. If Scope 2 is above 60% of your total, your first action is contacting your DISCOM about green energy or buying RECs. If Scope 1 fuel is high, look at diesel generator usage. If Scope 3 is dominant, focus on cloud provider selection and travel policy."
+  },
+  {
+    "id": 12,
+    "question": "how do diesel generators affect my footprint",
+    "keywords": ["diesel", "generator", "DG set", "backup power", "fuel", "scope 1"],
+    "answer": "Diesel generators are Scope 1 and one of the highest emission-intensity energy sources. Diesel emits 2.68 kg CO2 per litre burned. A 100 kVA DG set running 4 hours per day uses roughly 20 to 25 litres — around 18 tCO2e per year. Reduction strategies: invest in UPS battery backup to reduce DG runtime, or switch to biofuel blends."
+  },
+  {
+    "id": 13,
+    "question": "what protocols and standards does carbonaire use",
+    "keywords": ["protocol", "standard", "methodology", "GHG", "IPCC", "CEA", "framework", "carbonaire uses"],
+    "answer": "Carbonaire uses the GHG Protocol Corporate Standard as its core methodology — the global framework that defines Scope 1, 2, and 3. Emission factors are sourced from India's Central Electricity Authority (CEA) grid emission factor of 0.82 kg CO2 per kWh, IPCC AR6 for fuel combustion, and MoEFCC guidelines for Indian operations. All calculations follow internationally accepted carbon accounting principles."
+  },
+  {
+    "id": 14,
+    "question": "what emission factors does carbonaire use",
+    "keywords": ["emission factor", "0.82", "CEA", "data source", "where does carbonaire get", "values"],
+    "answer": "Carbonaire uses these emission factors: electricity — 0.82 kg CO2 per kWh from India CEA 2023. Diesel — 2.68 kg CO2 per litre from IPCC. Petrol — 2.31 kg CO2 per litre. LPG — 1.51 kg CO2 per kg. Air travel — 0.133 kg CO2 per passenger km (economy). These are the same factors used in official Indian carbon reporting under BRSR."
+  },
+  {
+    "id": 15,
+    "question": "what is carbonaire and how does it work",
+    "keywords": ["what is carbonaire", "how does carbonaire work", "about carbonaire", "platform", "tool"],
+    "answer": "Carbonaire is an AI-driven carbon footprint assessment platform for Indian IT companies. You input your operational data — electricity bills, fuel consumption, server count, employee count, cloud usage, travel. The platform calculates your Scope 1, 2, and 3 emissions using GHG Protocol methodology, benchmarks you against the Indian IT sector, identifies your biggest emission sources, and provides prioritised reduction recommendations."
+  },
+  {
+    "id": 16,
+    "question": "how accurate are carbonaire calculations",
+    "keywords": ["accurate", "accuracy", "reliable", "trust", "correct", "precise", "error"],
+    "answer": "Carbonaire's calculations are based on official Indian emission factors from CEA and MoEFCC — the same sources used in BRSR reporting. Accuracy depends on the quality of inputs you provide. If you enter actual meter readings and fuel receipts, results are accurate to within 5-10% of a professional audit. If you use estimates, treat results as directional rather than precise."
+  },
+  {
+    "id": 17,
+    "question": "can I use carbonaire results for BRSR reporting",
+    "keywords": ["BRSR", "reporting", "compliance", "official", "submit", "regulatory", "ESG"],
+    "answer": "Carbonaire uses the same GHG Protocol methodology and CEA emission factors required for BRSR reporting. The output gives you the Scope 1, 2, and 3 numbers you need. However, for formal BRSR submission, most companies get a third-party verification. Carbonaire is excellent for internal tracking, target setting, and preparing your data before formal verification."
+  },
+  {
+    "id": 18,
+    "question": "what is net zero and how do I achieve it",
+    "keywords": ["net zero", "carbon neutral", "zero emissions", "neutrality", "offset", "target"],
+    "answer": "Net zero means your total greenhouse gas emissions equal zero after reductions and legitimate offsets. For an IT company in India: first reduce emissions 70-80% through efficiency and renewables. Then offset remaining emissions through verified carbon credits — Gold Standard or Verra VCS certified projects. True net zero requires third party verification and should not rely primarily on offsets without genuine reduction first."
+  },
+  {
+    "id": 19,
+    "question": "what is GHG Protocol",
+    "keywords": ["GHG protocol", "greenhouse gas protocol", "standard", "methodology", "WRI"],
+    "answer": "The GHG Protocol is the global standard for measuring and reporting greenhouse gas emissions, published by the World Resources Institute. It defines the Scope 1, 2, 3 framework that Carbonaire uses. It is the basis for most national and corporate carbon reporting requirements including India's BRSR framework."
+  },
+  {
+    "id": 20,
+    "question": "how long will it take to reduce my emissions",
+    "keywords": ["how long", "timeline", "time", "when", "how soon", "achieve", "months"],
+    "answer": "Quick wins in 0 to 3 months: buying RECs, implementing a travel policy, enabling power management on all devices. Medium term over 3 to 12 months: server virtualisation, hot/cold aisle containment, switching to a green energy tariff. Long term over 1 to 3 years: rooftop solar, full fleet electrification, net zero certification."
+  },
+  {
+    "id": 21,
+    "question": "what are my findings",
+    "keywords": ["findings", "what did carbonaire find", "issues", "problems", "flagged", "results show"],
+    "answer": "Your findings are specific issues Carbonaire detected in your data — things like high Scope 2 intensity, diesel generator overuse, no renewable energy, outdated hardware, or above-average cloud emissions. Each finding has a severity level: Critical means immediate action needed, High means significant impact, Medium means moderate improvement opportunity, Low means minor optimisation. Start with Critical and High findings first."
+  },
+  {
+    "id": 22,
+    "question": "what is the Indian IT sector average emission",
+    "keywords": ["sector average", "benchmark", "industry average", "compare", "peers", "Indian IT"],
+    "answer": "The Indian IT sector average carbon intensity is approximately 2.1 tCO2e per Rs Crore of revenue, based on MoEFCC data and industry surveys. Top performers (EXCELLENT band) are below 1.0 tCO2e per Rs Crore. Companies above 4.0 are in the CRITICAL band. Carbonaire benchmarks your intensity against these thresholds to give you your performance band."
+  },
+  {
+    "id": 23,
+    "question": "how do I reduce scope 3 emissions",
+    "keywords": ["scope 3", "reduce scope 3", "indirect", "value chain", "supply chain"],
+    "answer": "Scope 3 for IT companies includes cloud computing, business travel, employee commuting, and purchased hardware. To reduce it: choose cloud providers with renewable energy commitments like AWS India or Azure. Implement a work from home policy to cut commute emissions. Set a travel budget per employee. When replacing hardware, prioritise vendors with product carbon footprint data."
+  },
+  {
+    "id": 24,
+    "question": "what is tCO2e",
+    "keywords": ["tCO2e", "tonnes", "CO2 equivalent", "unit", "measurement", "what does tCO2e mean"],
+    "answer": "tCO2e means tonnes of CO2 equivalent. It is the standard unit for measuring greenhouse gas emissions. The 'equivalent' part means all greenhouse gases — CO2, methane, nitrous oxide — are converted to their CO2 warming equivalent so everything can be compared on one scale. One tCO2e is roughly the emissions from driving a petrol car 4,000 km."
+  },
+  {
+    "id": 25,
+    "question": "how do I improve my emission band",
+    "keywords": ["improve band", "better band", "move to excellent", "upgrade rating", "lower intensity"],
+    "answer": "Your band is determined by your carbon intensity — tCO2e per Rs Crore revenue. To improve it you either reduce emissions or grow revenue (or both). The fastest path is addressing your largest scope: if Scope 2 dominates, buy RECs immediately — this can drop your intensity 40-60% within weeks. Track your intensity monthly as you implement changes."
+  }
+]
