@@ -1,7 +1,7 @@
 """
 core/scope3_calculator.py
 =========================
-Calculates Scope 3 (value-chain) emissions for IT/ITES SMEs.
+Calculates Scope 3 (value-chain) emissions for IT SMEs.
 
 Categories covered:
   Cat 1  — Cloud / hosted services (usage-based or spend-based)

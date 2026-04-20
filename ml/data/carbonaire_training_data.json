@@ -1,6 +1,6 @@
 [
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 529,
     "electricity_kwh_per_month": 16680.9,
@@ -31,7 +31,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 49,
     "electricity_kwh_per_month": 2688.0,
@@ -93,7 +93,7 @@
     "recommendation_label": 2
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 965,
     "electricity_kwh_per_month": 100230.7,
@@ -186,7 +186,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 275,
     "electricity_kwh_per_month": 28234.0,
@@ -434,7 +434,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 49,
     "electricity_kwh_per_month": 5088.5,
@@ -496,7 +496,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 22,
     "electricity_kwh_per_month": 1124.5,
@@ -713,7 +713,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1935,
     "electricity_kwh_per_month": 143134.9,
@@ -806,7 +806,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1178,
     "electricity_kwh_per_month": 79362.7,
@@ -992,7 +992,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 31,
     "electricity_kwh_per_month": 2412.4,
@@ -1054,7 +1054,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 16,
     "electricity_kwh_per_month": 1156.6,
@@ -1364,7 +1364,7 @@
     "recommendation_label": 8
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 14,
     "electricity_kwh_per_month": 1121.1,
@@ -1395,7 +1395,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 285,
     "electricity_kwh_per_month": 25398.0,
@@ -2139,7 +2139,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 140,
     "electricity_kwh_per_month": 9204.9,
@@ -2356,7 +2356,7 @@
     "recommendation_label": 2
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 25,
     "electricity_kwh_per_month": 2784.2,
@@ -2852,7 +2852,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 753,
     "electricity_kwh_per_month": 48584.6,
@@ -3131,7 +3131,7 @@
     "recommendation_label": 8
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 58,
     "electricity_kwh_per_month": 5281.4,
@@ -3162,7 +3162,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 24,
     "electricity_kwh_per_month": 1691.7,
@@ -3286,7 +3286,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1338,
     "electricity_kwh_per_month": 172864.1,
@@ -3317,7 +3317,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1443,
     "electricity_kwh_per_month": 95721.5,
@@ -3441,7 +3441,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1622,
     "electricity_kwh_per_month": 194866.4,
@@ -3534,7 +3534,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 294,
     "electricity_kwh_per_month": 40326.6,
@@ -3751,7 +3751,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 190,
     "electricity_kwh_per_month": 22468.4,
@@ -3906,7 +3906,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 34,
     "electricity_kwh_per_month": 3624.9,
@@ -4123,7 +4123,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 65,
     "electricity_kwh_per_month": 7739.5,
@@ -4309,7 +4309,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 26,
     "electricity_kwh_per_month": 1793.4,
@@ -4371,7 +4371,7 @@
     "recommendation_label": 4
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 145,
     "electricity_kwh_per_month": 8188.6,
@@ -4402,7 +4402,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 282,
     "electricity_kwh_per_month": 28184.0,
@@ -4898,7 +4898,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 23,
     "electricity_kwh_per_month": 1527.3,
@@ -4991,7 +4991,7 @@
     "recommendation_label": 4
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 412,
     "electricity_kwh_per_month": 16641.4,
@@ -5239,7 +5239,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1353,
     "electricity_kwh_per_month": 54673.6,
@@ -5332,7 +5332,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1998,
     "electricity_kwh_per_month": 156931.2,
@@ -5394,7 +5394,7 @@
     "recommendation_label": 4
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 254,
     "electricity_kwh_per_month": 13263.6,
@@ -5797,7 +5797,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1728,
     "electricity_kwh_per_month": 188070.1,
@@ -5921,7 +5921,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 183,
     "electricity_kwh_per_month": 12457.4,
@@ -6448,7 +6448,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 17,
     "electricity_kwh_per_month": 686.1,
@@ -7068,7 +7068,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1519,
     "electricity_kwh_per_month": 141000.0,
@@ -7254,7 +7254,7 @@
     "recommendation_label": 6
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1686,
     "electricity_kwh_per_month": 179120.9,
@@ -7409,7 +7409,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 196,
     "electricity_kwh_per_month": 16979.2,
@@ -7595,7 +7595,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 979,
     "electricity_kwh_per_month": 89523.9,
@@ -7905,7 +7905,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 30,
     "electricity_kwh_per_month": 1346.1,
@@ -8618,7 +8618,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 19,
     "electricity_kwh_per_month": 707.3,
@@ -8742,7 +8742,7 @@
     "recommendation_label": 8
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 475,
     "electricity_kwh_per_month": 15915.3,
@@ -8773,7 +8773,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 172,
     "electricity_kwh_per_month": 9921.4,
@@ -8866,7 +8866,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 177,
     "electricity_kwh_per_month": 14070.7,
@@ -8897,7 +8897,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 202,
     "electricity_kwh_per_month": 7999.5,
@@ -9238,7 +9238,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 292,
     "electricity_kwh_per_month": 33667.9,
@@ -9486,7 +9486,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 96,
     "electricity_kwh_per_month": 5085.1,
@@ -9641,7 +9641,7 @@
     "recommendation_label": 2
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 796,
     "electricity_kwh_per_month": 41424.8,
@@ -9672,7 +9672,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1185,
     "electricity_kwh_per_month": 141119.7,
@@ -9858,7 +9858,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1041,
     "electricity_kwh_per_month": 84428.1,
@@ -9920,7 +9920,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1408,
     "electricity_kwh_per_month": 94106.1,
@@ -9982,7 +9982,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1172,
     "electricity_kwh_per_month": 101725.8,
@@ -10106,7 +10106,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 44,
     "electricity_kwh_per_month": 3548.9,
@@ -10168,7 +10168,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 292,
     "electricity_kwh_per_month": 33489.1,
@@ -10261,7 +10261,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1002,
     "electricity_kwh_per_month": 114514.9,
@@ -10323,7 +10323,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 10,
     "electricity_kwh_per_month": 722.5,
@@ -10447,7 +10447,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 45,
     "electricity_kwh_per_month": 4369.5,
@@ -11160,7 +11160,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 44,
     "electricity_kwh_per_month": 4296.4,
@@ -11687,7 +11687,7 @@
     "recommendation_label": 2
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 49,
     "electricity_kwh_per_month": 6159.2,
@@ -11780,7 +11780,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1649,
     "electricity_kwh_per_month": 40189.4,
@@ -11842,7 +11842,7 @@
     "recommendation_label": 8
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1216,
     "electricity_kwh_per_month": 133416.7,
@@ -12121,7 +12121,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 27,
     "electricity_kwh_per_month": 689.8,
@@ -12152,7 +12152,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 279,
     "electricity_kwh_per_month": 13413.0,
@@ -12307,7 +12307,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 240,
     "electricity_kwh_per_month": 24404.4,
@@ -12834,7 +12834,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 243,
     "electricity_kwh_per_month": 14804.1,
@@ -12958,7 +12958,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1118,
     "electricity_kwh_per_month": 127649.2,
@@ -12989,7 +12989,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 60,
     "electricity_kwh_per_month": 6260.7,
@@ -13020,7 +13020,7 @@
     "recommendation_label": 8
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 274,
     "electricity_kwh_per_month": 26762.6,
@@ -13144,7 +13144,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 881,
     "electricity_kwh_per_month": 105623.2,
@@ -13175,7 +13175,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 192,
     "electricity_kwh_per_month": 13277.7,
@@ -13547,7 +13547,7 @@
     "recommendation_label": 8
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 17,
     "electricity_kwh_per_month": 1845.0,
@@ -13764,7 +13764,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "medium",
     "num_employees": 79,
     "electricity_kwh_per_month": 3498.9,
@@ -13857,7 +13857,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 602,
     "electricity_kwh_per_month": 56582.9,
@@ -14229,7 +14229,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 33,
     "electricity_kwh_per_month": 3020.1,
@@ -14508,7 +14508,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 13,
     "electricity_kwh_per_month": 1367.7,
@@ -14539,7 +14539,7 @@
     "recommendation_label": 7
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 27,
     "electricity_kwh_per_month": 2131.7,
@@ -14632,7 +14632,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1760,
     "electricity_kwh_per_month": 116153.8,
@@ -14725,7 +14725,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 31,
     "electricity_kwh_per_month": 941.4,
@@ -14911,7 +14911,7 @@
     "recommendation_label": 0
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "small",
     "num_employees": 36,
     "electricity_kwh_per_month": 1717.9,
@@ -14973,7 +14973,7 @@
     "recommendation_label": 4
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 533,
     "electricity_kwh_per_month": 29920.9,
@@ -15159,7 +15159,7 @@
     "recommendation_label": 1
   },
   {
-    "industry_type": "IT/ITES",
+    "industry_type": "IT",
     "company_size": "large",
     "num_employees": 1461,
     "electricity_kwh_per_month": 174738.3,

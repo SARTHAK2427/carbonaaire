@@ -30,9 +30,9 @@ def main():
     print("=" * 65)
 
     # ── Step 1: Generate dataset ──────────────────────────────
-    print("\n[1/3] Generating synthetic training dataset (500 profiles)...")
-    dataset = generate_dataset(500)
-    csv_path, json_path = save_dataset(dataset, out_dir=DATA_DIR)
+    print("\n[1/3] Using existing training dataset...")
+    csv_path = os.path.join(DATA_DIR, "carbonaire_training_data.csv")
+    print(f"  Dataset: {csv_path}")
 
     # ── Step 2: Train models ──────────────────────────────────
     print("\n[2/3] Training models...")
@@ -60,7 +60,7 @@ def main():
 
     class MockData:
         company_name = "TechNova Solutions"
-        industry_type = "IT/ITES"
+        industry_type = "IT"
         num_employees = 120
         electricity_kwh_per_month = 14000
         renewable_energy_percent = 5.0

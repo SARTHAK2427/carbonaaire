@@ -1677,7 +1677,7 @@ function HeroSection({ onStart, onLearnMore }) {
 
 /* ── STEP FORM DATA ──────────────────────────────────────────────────────────── */
 const INIT_FORM = {
-  company: "", state: "default", industry: "IT/ITES", employees: 50, revenue: 10, hours: 8,
+  company: "", state: "default", industry: "IT", employees: 50, revenue: 10, hours: 8,
   diesel: 0, petrol: 0, natgas: 0, lpg: 0,
   elec: 5000, renewable: 0,
   racks: 0, srvhrs: 24, srvtype: "hot_aisle_cold_aisle", servers: 0,
@@ -1702,6 +1702,10 @@ export default function App() {
   const [mlData, setMlData] = useState(null);
   const [personalization, setPersonalization] = useState(null);
   const [learningStatus, setLearningStatus] = useState(null);
+  const [savedPrefs, setSavedPrefs] = useState(() => {
+  try { return JSON.parse(localStorage.getItem("carbonaire_prefs") || "[]"); }
+  catch { return []; }
+  });
   const [user, setUser] = useState(() => getStoredUser());
 
   const [inputMode, setInputMode] = useState("upload");
@@ -1721,42 +1725,108 @@ export default function App() {
 
   /* ── INTERNAL COMPONENTS ────────────────────────────────────────────────── */
   const VerificationBlock = ({ docKey, title, fields }) => {
-    const doc = uploadedDocs[docKey];
-    const data = extractedData[docKey];
-    if (!doc || !data) return null;
+  const doc = uploadedDocs[docKey];
+  const data = extractedData[docKey];
+  if (!doc) return null;
 
-    const isImg = doc.type.startsWith("image/");
-    const previewUrl = isImg ? URL.createObjectURL(doc) : null;
+  const isImg = doc.type.startsWith("image/");
+  const previewUrl = isImg ? URL.createObjectURL(doc) : null;
 
-    return (
-      <div className="verify-block fade-up">
-        <div className="verify-preview">
-          {isImg ? <img src={previewUrl} alt="Document Preview" /> : <div className="verify-preview-icon">📄</div>}
-          <div className="verify-preview-label">{doc.name}</div>
-        </div>
-        <div className="verify-content">
-          <div className="verify-title">Document Reference: {title}</div>
-          <div className="verify-question" style={{ border: "none", paddingTop: 0 }}>
-            Does the provided document contain all the required information for this section?
-            <div className="verify-actions">
-              <button
-                className={`btn-verify ${sectionVerified[docKey] === 'yes' ? 'active' : ''}`}
-                onClick={() => setSectionVerified(p => ({ ...p, [docKey]: 'yes' }))}
-              >
-                Yes — Document is complete
-              </button>
-              <button
-                className={`btn-verify ${sectionVerified[docKey] === 'no' ? 'active' : ''}`}
-                onClick={() => setSectionVerified(p => ({ ...p, [docKey]: 'no' }))}
-              >
-                No — I need to add missing values
-              </button>
+  // Figure out what was extracted vs what's missing
+  const extracted = {};
+  const missing = {};
+  if (data) {
+    Object.entries(fields).forEach(([label, apiKey]) => {
+      if (data[apiKey] !== undefined && data[apiKey] !== null) {
+        extracted[label] = data[apiKey];
+      } else {
+        missing[label] = apiKey;
+      }
+    });
+  }
+
+  const hasExtracted = Object.keys(extracted).length > 0;
+  const hasMissing = Object.keys(missing).length > 0;
+
+  return (
+    <div className="verify-block fade-up">
+      <div className="verify-preview">
+        {isImg
+          ? <img src={previewUrl} alt="Document Preview" />
+          : <div className="verify-preview-icon">📄</div>
+        }
+        <div className="verify-preview-label">{doc.name}</div>
+      </div>
+      <div className="verify-content">
+        <div className="verify-title">📎 {title}</div>
+
+        {/* Show extracted values */}
+        {hasExtracted && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{
+              fontFamily: "JetBrains Mono,monospace", fontSize: 9,
+              letterSpacing: ".1em", textTransform: "uppercase",
+              color: "var(--g600)", marginBottom: 8,
+              display: "flex", alignItems: "center", gap: 6
+            }}>
+              ✅ Extracted from document
+            </div>
+            <div className="verify-data-grid">
+              {Object.entries(extracted).map(([label, val]) => (
+                <div key={label} className="verify-data-item">
+                  <div className="verify-data-label">{label}</div>
+                  <div className="verify-data-val" style={{ color: "var(--g700)" }}>
+                    {val}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Show missing fields */}
+        {hasMissing && (
+          <div style={{
+            background: "#FFFBEB", border: "1px solid #D97706",
+            borderRadius: 6, padding: "10px 14px", marginBottom: 10
+          }}>
+            <div style={{
+              fontFamily: "JetBrains Mono,monospace", fontSize: 9,
+              letterSpacing: ".1em", textTransform: "uppercase",
+              color: "#B45309", marginBottom: 6
+            }}>
+              ⚠️ Could not find — please enter below
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {Object.keys(missing).map(label => (
+                <span key={label} style={{
+                  background: "#FEF3C7", border: "1px solid #FCD34D",
+                  borderRadius: 4, padding: "2px 8px",
+                  fontFamily: "JetBrains Mono,monospace",
+                  fontSize: 10, color: "#92400E"
+                }}>
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* If everything was extracted, show complete message */}
+        {hasExtracted && !hasMissing && (
+          <div style={{
+            background: "var(--g50)", border: "1px solid var(--g300)",
+            borderRadius: 6, padding: "8px 14px",
+            fontFamily: "JetBrains Mono,monospace", fontSize: 10,
+            color: "var(--g700)"
+          }}>
+            ✅ All required data extracted — no manual entry needed for this section.
+          </div>
+        )}
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   const MLInsightsCard = ({ data }) => {
     if (!data || !data.ml_available) return null;
@@ -1955,12 +2025,15 @@ export default function App() {
       Object.entries(m).forEach(([exKey, formKey]) => {
         if (data[exKey] !== undefined) {
           formExtracted[formKey] = data[exKey];
-          if (sectionVerified[key] === 'yes') {
-            formCombined[formKey] = data[exKey];
-            formManual[formKey] = 0;
-          } else {
+          if (sectionVerified[key] === 'no') {
+
+
             formCombined[formKey] = (parseFloat(data[exKey]) || 0) + (parseFloat(form[formKey]) || 0);
             formManual[formKey] = form[formKey];
+
+          } else {
+            formCombined[formKey] = data[exKey];
+            formManual[formKey] = 0;
           }
         }
       });
@@ -2009,11 +2082,19 @@ export default function App() {
 
 
   const goCalculator = () => {
+    if (!user) {
+      setShowSignup(true);
+      return;
+    }
+    setApiMessage(null);
+  
     setApiMessage(null);
     setInputMode("upload");
     setExcelFile(null);
     setUploadedDocs({ electricity: null, hardware: null, cloud: null, fuel: null });
     setStep(0);
+    setForm({ ...INIT_FORM, elec: 0, diesel: 0, petrol: 0, cloudbill: 0, laptops: 0, desktops: 0, servers: 0, monitors: 0 });
+    setPage("calculator");
     setPage("calculator");
   };
 
@@ -2068,7 +2149,7 @@ export default function App() {
         const newForm = {
           company: raw.company_name || "",
           state: raw.location_state || "default",
-          industry: raw.industry_type || "IT/ITES",
+          industry: raw.industry_type || "IT",
           employees: raw.num_employees || 0,
           revenue: raw.annual_revenue_inr_cr || 0,
           hours: raw.working_hours_per_day || 8,
@@ -2148,7 +2229,15 @@ export default function App() {
             <button className="nav-link" onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })}>About</button>
             <button className="nav-link" onClick={() => document.getElementById("journey")?.scrollIntoView({ behavior: "smooth" })}>How It Works</button>
             <button className="nav-link" onClick={() => document.getElementById("what-we-do")?.scrollIntoView({ behavior: "smooth" })}>What We Do</button>
+            {user ? (
+            <button className="nav-signup" onClick={() => {
+              localStorage.removeItem("carbonaire_token");
+              localStorage.removeItem("carbonaire_user");
+              setUser(null);
+            }}>Log Out</button>
+            ) : (
             <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+            )}
             <button className="nav-cta" onClick={goCalculator}>Start Calculating</button>
           </div>
         </nav>
@@ -2338,7 +2427,15 @@ export default function App() {
           <div className="nav-links">
             <button className="nav-link" onClick={() => setPage("home")}>Back to Home</button>
             {result && <button className="nav-link" onClick={() => setPage("results")}>View Results</button>}
+            {user ? (
+            <button className="nav-signup" onClick={() => {
+              localStorage.removeItem("carbonaire_token");
+              localStorage.removeItem("carbonaire_user");
+              setUser(null);
+            }}>Log Out</button>
+            ) : (
             <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+            )}
           </div>
         </nav>
         {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
@@ -2525,7 +2622,7 @@ export default function App() {
                         <div className="fl">
                           <label>Industry Type</label>
                           <select value={form.industry} onChange={str("industry")}>
-                            <option value="IT/ITES">IT / ITES</option>
+                            <option value="IT">IT </option>
                             <option value="Software">Software Development</option>
                             <option value="BPO">BPO / Call Centre</option>
                             <option value="Data Centre">Data Centre</option>
@@ -2891,7 +2988,15 @@ export default function App() {
           <div className="nav-links">
             <button className="nav-link" onClick={() => { setStep(0); setPage("calculator") }}>Recalculate</button>
             <button className="nav-link" onClick={() => setPage("home")}>Home</button>
+            {user ? (
+            <button className="nav-signup" onClick={() => {
+              localStorage.removeItem("carbonaire_token");
+              localStorage.removeItem("carbonaire_user");
+              setUser(null);
+            }}>Log Out</button>
+            ) : (
             <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+            )}
             <button className="nav-cta" onClick={() => setPage("ai")}>AI Advisor</button>
           </div>
         </nav>
@@ -2935,7 +3040,9 @@ export default function App() {
               learningStatus={learningStatus}
               user={user}
               onLogin={() => setShowSignup(true)}
-            />
+              inputSnapshot={buildPayload(form)}
+              />
+            
 
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 1, background: "var(--line)", borderRadius: 8, overflow: "hidden", marginBottom: 28, boxShadow: "var(--sh)" }}>
@@ -3324,8 +3431,29 @@ export default function App() {
                 </div>
               ))}
             </div>
-            {fndgs.map((f, i) => (
+            {fndgs.map((f, i) => {
+
+            const prefKey = f.cat;
+            const isChecked = savedPrefs.includes(prefKey);
+            const togglePref = async () => {
+              const updated = isChecked ? savedPrefs.filter(x => x !== prefKey) : [...savedPrefs, prefKey];
+              setSavedPrefs(updated);
+              localStorage.setItem("carbonaire_prefs", JSON.stringify(updated));
+              if (user) {
+                try {
+                  await fetch(`${API_BASE}/api/feedback`, {
+                    method: "POST",
+                    headers: authJsonHeaders(),
+                    body: JSON.stringify({ recommendations: updated, input_snapshot: buildPayload(form) })
+                  });
+                } catch(e) { console.log("Feedback save failed:", e); }
+              }
+            };
+            return (
               <div key={i} className={`finding f-${f.sev}`} style={{ position: "relative" }}>
+                <input type="checkbox" checked={isChecked} onChange={togglePref}
+                style={{ position: "absolute", bottom: 14, left: 16, width: 18, height: 18, cursor: "pointer", accentColor: "var(--g500)" }} />
+                <span style={{ position: "absolute", bottom: 16, left: 38, fontSize: 11, color: "var(--muted)", fontFamily: "JetBrains Mono, monospace" }}>save</span>
                 {f.source === 'ML' && (
                   <div style={{ position: "absolute", top: 12, right: 16, display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12 }}>✨</span>
@@ -3339,9 +3467,9 @@ export default function App() {
                   <span className="f-cat">{f.cat}</span>
                 </div>
                 <div className="f-msg">{f.msg}</div>
-                <div className="f-rec">{f.rec}</div>
+                <div className="f-rec" style={{ paddingBottom: 28 }}>{f.rec}</div>
               </div>
-            ))}
+            );})}
 
 
             <div style={{ marginTop: 32, textAlign: "center" }}>
@@ -3377,7 +3505,15 @@ export default function App() {
             <button className="nav-link" onClick={() => setPage("home")}>Home</button>
             <button className="nav-link" onClick={goCalculator}>Calculator</button>
             {result && <button className="nav-link" onClick={() => setPage("results")}>Results</button>}
+            {user ? (
+            <button className="nav-signup" onClick={() => {
+              localStorage.removeItem("carbonaire_token");
+              localStorage.removeItem("carbonaire_user");
+              setUser(null);
+            }}>Log Out</button>
+            ) : (
             <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+            )}
           </div>
         </nav>
 

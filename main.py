@@ -146,7 +146,7 @@ def interactive_mode():
 
     data = CarbonInputData(
         company_name  = _ask("Company name",        "My Company"),
-        industry_type = _ask("Industry type",       "IT/ITES"),
+        industry_type = _ask("Industry type",       "IT"),
         location_state= _ask(
             "State (e.g. karnataka, maharashtra, delhi)",
             bill_info.get("location_state", "default"),

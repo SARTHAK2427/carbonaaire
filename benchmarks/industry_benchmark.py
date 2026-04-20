@@ -1,7 +1,7 @@
 """
 benchmarks/industry_benchmark.py
 =================================
-Indian IT/ITES SME industry benchmarks derived from BRSR disclosures
+Indian IT SME industry benchmarks derived from BRSR disclosures
 and CEA data, as specified in the Carbonaire benchmark document.
 
 Benchmark metric: tCO2e per ₹ Crore annual revenue

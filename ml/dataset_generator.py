@@ -210,7 +210,7 @@ def label_recommendation(p: dict, s1_pct, s2_pct, s3_pct) -> str:
 # PROFILE GENERATOR
 # ─────────────────────────────────────────────────────────────
 
-INDUSTRIES  = ["IT/ITES", "Manufacturing", "Retail", "Finance", "Healthcare", "Logistics", "Education"]
+INDUSTRIES  = ["IT", "Manufacturing", "Retail", "Finance", "Healthcare", "Logistics", "Education"]
 CLOUD_PROVIDERS = ["aws", "azure", "gcp", "none"]
 ARRANGEMENTS = ["hot_aisle_cold_aisle", "stacked_high_density", "direct_liquid_cooling", "custom"]
 SIZES = ["small", "medium", "large"]

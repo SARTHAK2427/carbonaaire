@@ -82,7 +82,7 @@ def build_demo_input() -> CarbonInputData:
     """
     return CarbonInputData(
         company_name                         = "TechNova Solutions Pvt Ltd",
-        industry_type                        = "IT/ITES",
+        industry_type                        = "IT",
         location_state                       = "karnataka",
         num_employees                        = 120,
         working_hours_per_day                = 9.0,
@@ -144,7 +144,7 @@ def build_excellent_input() -> CarbonInputData:
     """
     return CarbonInputData(
         company_name                           = "GreenTech India",
-        industry_type                          = "IT/ITES",
+        industry_type                          = "IT",
         location_state                         = "karnataka",
         num_employees                          = 100,
         annual_revenue_inr_cr                  = 20.0,
@@ -171,7 +171,7 @@ def build_high_emission_input() -> CarbonInputData:
     """
     return CarbonInputData(
         company_name                           = "OldSchool IT",
-        industry_type                          = "IT/ITES",
+        industry_type                          = "IT",
         location_state                         = "rajasthan",
         num_employees                          = 80,
         annual_revenue_inr_cr                  = 12.0,
@@ -207,59 +207,63 @@ _EXCEL_REQUIRED_FIELDS: List[str] = [
     "electricity_kwh_per_month",
 ]
 
-
 def load_inputs_from_excel(path: str) -> CarbonInputData:
-    """
-    Load CarbonInputData from a single-row Excel file.
-
-    - Expects at least the required fields in _EXCEL_REQUIRED_FIELDS.
-    - Column names should match CarbonInputData field names (snake_case).
-    - Raises ValueError with a clear message if requirements are not met.
-    """
     if pd is None:
-        raise RuntimeError(
-            "pandas is not installed. Please install dependencies (e.g. pip install -r requirements.txt)."
-        )
-
+        raise RuntimeError("pandas is not installed.")
     if not os.path.exists(path):
         raise FileNotFoundError(f"Excel file not found: {path}")
 
-    df = pd.read_excel(path)  # type: ignore[arg-type]
+    df = pd.read_excel(path, header=None)
     if df.empty:
         raise ValueError("Excel file is empty.")
 
-    row = df.iloc[0].to_dict()
-
-    # Check required fields presence and non-null
-    missing: List[str] = []
-    for field_name in _EXCEL_REQUIRED_FIELDS:
-        if field_name not in row or (pd.isna(row[field_name]) if pd is not None else row[field_name] is None):  # type: ignore[func-returns-value]
-            missing.append(field_name)
-
-    if missing:
-        raise ValueError(
-            "Excel file is missing required fields or values: "
-            + ", ".join(missing)
-        )
+    first_col_values = df.iloc[:, 0].astype(str).str.strip().tolist()
+    known_fields = {
+        "company_name", "industry_type", "location_state", "num_employees",
+        "electricity_kwh_per_month", "annual_revenue_inr_cr"
+    }
+    col0_set = set(v.strip() for v in first_col_values)
+    is_template_format = len(known_fields & col0_set) >= 2
 
     cleaned: Dict[str, Any] = {}
-    for key, value in row.items():
-        if isinstance(value, str):
-            v = value.strip()
-            if v == "":
+
+    if is_template_format:
+        for _, row in df.iterrows():
+            key = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ""
+            val = row.iloc[1] if len(row) > 1 else None
+            if not key or key.startswith("──") or key.startswith("Fill") or key == "Field" or key.startswith("🌿"):
                 continue
-            cleaned[key] = v
-        else:
-            cleaned[key] = value
+            if pd.isna(val) or str(val).strip() == "" or str(val).strip() == "nan":
+                continue
+            if isinstance(val, str):
+                v = val.strip()
+                if v:
+                    cleaned[key] = v
+            else:
+                cleaned[key] = val
+    else:
+        row = df.iloc[0].to_dict()
+        for key, value in row.items():
+            if isinstance(value, str):
+                v = value.strip()
+                if v:
+                    cleaned[str(key)] = v
+            elif not pd.isna(value):
+                cleaned[str(key)] = value
 
     cleaned["uploaded_docs"] = [os.path.basename(path)]
+
+    missing = []
+    for field_name in _EXCEL_REQUIRED_FIELDS:
+        if field_name not in cleaned or cleaned[field_name] is None:
+            missing.append(field_name)
+    if missing:
+        raise ValueError("Missing required fields: " + ", ".join(missing))
 
     data = inputs_from_dict(cleaned)
     issues = validate_inputs(data)
     if issues["errors"]:
-        raise ValueError(
-            "Excel data failed validation: " + "; ".join(issues["errors"])
-        )
+        raise ValueError("Excel data failed validation: " + "; ".join(issues["errors"]))
 
     return data
 
@@ -385,16 +389,26 @@ def extract_from_electricity_document(path: str) -> Dict[str, Any]:
     clean_text = re.sub(r"[,\s]+", " ", lowered)
     
     kwh_patterns = [
-        re.compile(r"(?:total\s*units|units\s*consumed|usage|units|billed\s*units)\s*[:\-\s]*(\d+(\.\d+)?)"),
-        re.compile(r"(\d+(\.\d+)?)\s*(?:kwh|units?)"),
-        re.compile(r"cons\s*[:\-\s]*(\d+(\.\d+)?)")
+    re.compile(r"total\s*units\s*[=:\-\s]*(\d+(?:\.\d+)?)"),
+    re.compile(r"units?\s*consumed\s*[=:\-\s]*(\d+(?:\.\d+)?)"),
+    re.compile(r"billed\s*units\s*[=:\-\s]*(\d+(?:\.\d+)?)"),
+    re.compile(r"kwh\s+[\d\-]+\s+[\d\.]+\s+[\d\-]+\s+[\d\.]+\s+[\d\.]+\s+\d+\s+(\d+(?:\.\d+)?)"),
+    re.compile(r"1\.00\s+\d+\s+(\d+(?:\.\d+)?)"),
+    re.compile(r"(\d+(?:\.\d+)?)\s*kwh"),
+    
     ]
     
     for pat in kwh_patterns:
         m = pat.search(clean_text)
         if m:
-            result["electricity_kwh_per_month"] = float(m.group(1))
-            break
+            val = float(m.group(1))
+
+
+            if val < 100000:
+
+                result["electricity_kwh_per_month"] = val
+
+                break
 
     # Look for location
     for state_name in _INDIAN_STATES:

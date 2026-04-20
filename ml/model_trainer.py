@@ -17,6 +17,7 @@ import pandas as pd
 from collections import Counter
 
 from sklearn.tree import DecisionTreeClassifier, export_text
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split, cross_val_score
@@ -123,14 +124,17 @@ def train_decision_tree(X_train, y_train, X_test, y_test):
     - max_depth=8 keeps it lean and avoids overfitting
     - No feature scaling needed
     """
-    dt = DecisionTreeClassifier(
-        max_depth=8,
+
+    dt = RandomForestClassifier(
+
+        n_estimators=100,
+        max_depth=10,
         min_samples_leaf=5,
-        min_samples_split=10,
-        class_weight="balanced",   # handles class imbalance
+        class_weight="balanced",
         random_state=42,
-        criterion="gini",
     )
+    
+
     dt.fit(X_train, y_train)
 
     y_pred = dt.predict(X_test)

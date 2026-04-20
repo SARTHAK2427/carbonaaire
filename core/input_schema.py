@@ -25,7 +25,7 @@ class CarbonInputData:
 
     # ── Company / General Info ──────────────────────────────────
     company_name: str = "Unknown Company"
-    industry_type: str = "IT/ITES"          # e.g. IT/ITES, Manufacturing, etc.
+    industry_type: str = "IT"          # e.g. IT, Manufacturing, etc.
     location_state: str = "default"         # Indian state (for state grid EF)
     num_employees: int = 0                  # Total headcount
     working_hours_per_day: float = 8.0      # General working hours/day

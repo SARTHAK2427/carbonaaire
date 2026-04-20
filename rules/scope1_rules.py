@@ -114,7 +114,7 @@ def rule_scope1_share_of_total(result: dict, data) -> list:
             category="Scope Balance",
             message=(
                 f"Scope 1 represents {pct:.1f}% of total emissions ({tco2e:.3f} tCO2e/month). "
-                "For IT/ITES companies, Scope 1 should ideally be <10%."
+                "For IT companies, Scope 1 should ideally be <10%."
             ),
             recommendation=(
                 "Conduct an immediate audit of all on-site combustion sources. "

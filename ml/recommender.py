@@ -357,7 +357,7 @@ class CarbonMLRecommenderV2:
         }
         for col in CATEGORICAL_FEATURES:
             val_map = {
-                "industry_type":     _g(data,"industry_type","IT/ITES"),
+                "industry_type":     _g(data,"industry_type","IT"),
                 "company_size":      self._company_size(_g(data,"num_employees",50)),
                 "electricity_level": self._electricity_level(_g(data,"electricity_kwh_per_month",5000)),
                 "server_arrangement":_g(data,"server_arrangement","hot_aisle_cold_aisle"),
@@ -395,7 +395,10 @@ class CarbonMLRecommenderV2:
             # Decision Tree
             label  = int(self._dt.predict(X_row)[0])
             proba  = self._dt.predict_proba(X_row)[0]
-            conf   = float(proba[label]) * 100
+            classes = list(self._dt.classes_)
+            idx = classes.index(label)
+            conf = float(proba[idx]) * 100
+            conf = min(95, max(15, conf))
 
             # Top-3 unique recommendations
             top3_idx = np.argsort(proba)[::-1]
@@ -422,7 +425,7 @@ class CarbonMLRecommenderV2:
             X_scaled = self._scaler.transform(X_row)
             cluster  = int(self._km.predict(X_scaled)[0])
 
-            primary_name = RECOMMENDATION_NAMES[label]
+            primary_name = RECOMMENDATION_NAMES[idx]
             primary_ps   = PRIORITY_SCORES[primary_name]
 
             return {

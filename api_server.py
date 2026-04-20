@@ -1,12 +1,5 @@
 """
-api_server.py  (v2 — drop-in replacement)
-==========================================
-Carbonaire FastAPI server with:
-  - All original endpoints preserved
-  - ML v2 recommendations (scope-wise, XAI, priority colours, top-3)
-  - User auth (register / login / logout)
-  - Assessment history & personalization context
-  - Continuous learning status endpoint
+api_server.py — Carbonaire FastAPI server
 """
 
 import os
@@ -14,7 +7,7 @@ import shutil
 import tempfile
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -29,17 +22,32 @@ from utils.helpers import (
     load_inputs_from_excel,
 )
 from utils.report_generator import _benchmark_block
-
-# ML v2
 from ml.recommender import get_recommender_v2
-from ml.user_system import (
-    register_user, login_user, validate_token, logout_user,
-    save_assessment, get_user_history, get_personalization_context,
-    get_user_profile, get_learning_status,
-)
 
-# ─────────────────────────────────────────────────────────────
-app = FastAPI(title="Carbonaire API v2")
+# ─── AUTH IMPORTS ─────────────────────────────────────────────
+# Wrapped in try/except so server still starts if DB has an issue
+try:
+    from ml.auth_system import (
+        register_user,
+        login_user,
+        validate_token,
+        logout_user,
+        save_assessment,
+        get_user_history,
+        get_personalization_context,
+        get_user_profile,
+        get_learning_status,
+        save_feedback,
+    )
+    AUTH_AVAILABLE = True
+    print("✅ Auth system loaded.")
+except Exception as _auth_err:
+    AUTH_AVAILABLE = False
+    print(f"⚠️  Auth system unavailable: {_auth_err}")
+
+# ─── APP ──────────────────────────────────────────────────────
+
+app = FastAPI(title="Carbonaire API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +58,8 @@ app.add_middleware(
         "http://127.0.0.1:5174",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -61,20 +71,45 @@ recommender = get_recommender_v2(models_dir=os.path.join(
 ))
 
 
-# ─────────────────────────────────────────────────────────────
-# AUTH HELPERS
-# ─────────────────────────────────────────────────────────────
+# ─── HELPERS ──────────────────────────────────────────────────
 
-def _current_user(authorization: Optional[str] = None) -> Optional[str]:
-    """Extract user_id from Bearer token header. Returns None if not authenticated."""
-    if not authorization or not authorization.startswith("Bearer "):
+def _get_user_from_header(authorization: Optional[str]) -> Optional[str]:
+    """Extract and validate Bearer token. Returns user_id or None."""
+    if not AUTH_AVAILABLE or not authorization:
         return None
-    return validate_token(authorization[7:])
+    try:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            return None
+        return validate_token(token)
+    except Exception:
+        return None
 
 
-# ─────────────────────────────────────────────────────────────
-# PYDANTIC MODELS
-# ─────────────────────────────────────────────────────────────
+def _strip_confidence(ml_out: Dict) -> Dict:
+    """
+    Remove confidence % from all ML output fields before
+    sending to frontend — 51% looks weak, per product spec.
+    """
+    if not ml_out:
+        return ml_out
+    keys_to_remove = ["ml_confidence"]
+    cleaned = {k: v for k, v in ml_out.items() if k not in keys_to_remove}
+
+    # Also strip from top3 recommendations list
+    if "ml_top3_recommendations" in cleaned:
+        for rec in cleaned["ml_top3_recommendations"]:
+            rec.pop("confidence", None)
+
+    # Strip from enhanced findings
+    if "ml_enhanced_findings" in cleaned:
+        for finding in cleaned["ml_enhanced_findings"]:
+            finding.pop("confidence", None)
+
+    return cleaned
+
+
+# ─── PYDANTIC MODELS ──────────────────────────────────────────
 
 class CarbonInputPayload(BaseModel):
     company_name: Optional[str] = None
@@ -120,53 +155,126 @@ class LoginPayload(BaseModel):
     password: str
 
 
-# ─────────────────────────────────────────────────────────────
-# AUTH ENDPOINTS
-# ─────────────────────────────────────────────────────────────
+class FeedbackPayload(BaseModel):
+    recommendations: List[str]
+    input_snapshot: Optional[Dict[str, Any]] = None
+
+
+# ─── AUTH ENDPOINTS ───────────────────────────────────────────
 
 @app.post("/api/auth/register")
-def api_register(payload: RegisterPayload):
-    return register_user(payload.email, payload.name, payload.password, payload.company_name or "")
+def api_register(payload: RegisterPayload) -> Dict:
+    if not AUTH_AVAILABLE:
+        return {"ok": False, "error": "Auth service unavailable."}
+    return register_user(
+        email=payload.email,
+        name=payload.name,
+        password=payload.password,
+        company_name=payload.company_name or "",
+    )
 
 
 @app.post("/api/auth/login")
-def api_login(payload: LoginPayload):
-    return login_user(payload.email, payload.password)
+def api_login(payload: LoginPayload) -> Dict:
+    if not AUTH_AVAILABLE:
+        return {"ok": False, "error": "Auth service unavailable."}
+    return login_user(email=payload.email, password=payload.password)
 
 
 @app.post("/api/auth/logout")
-def api_logout(authorization: Optional[str] = Header(None)):
-    token = (authorization or "").replace("Bearer ", "")
-    logout_user(token)
-    return {"ok": True}
+def api_logout(authorization: Optional[str] = Header(None)) -> Dict:
+    if not AUTH_AVAILABLE:
+        return {"ok": True}
+    user_id = _get_user_from_header(authorization)
+    if not user_id or not authorization:
+        return {"ok": True}
+    _, _, token = authorization.partition(" ")
+    return logout_user(token)
 
 
 @app.get("/api/auth/me")
-def api_me(authorization: Optional[str] = Header(None)):
-    user_id = _current_user(authorization)
+def api_me(authorization: Optional[str] = Header(None)) -> Dict:
+    user_id = _get_user_from_header(authorization)
     if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        return {"ok": False, "error": "Not authenticated."}
     profile = get_user_profile(user_id)
-    if not profile:
-        raise HTTPException(status_code=404, detail="User not found")
     return {"ok": True, "user": profile}
 
 
-# ─────────────────────────────────────────────────────────────
-# MAIN ASSESSMENT ENDPOINT
-# ─────────────────────────────────────────────────────────────
+# ─── FEEDBACK ENDPOINT ────────────────────────────────────────
+
+@app.post("/api/feedback")
+def api_feedback(
+    payload: FeedbackPayload,
+    authorization: Optional[str] = Header(None),
+) -> Dict:
+    """
+    Called when user checks recommendation checkboxes.
+    Saves their preferences + input snapshot to DB.
+    Triggers auto-retrain every 100 feedbacks.
+    """
+    if not AUTH_AVAILABLE:
+        return {"ok": False, "error": "Auth service unavailable."}
+
+    user_id = _get_user_from_header(authorization)
+    if not user_id:
+        return {"ok": False, "error": "Authentication required to save feedback."}
+
+    if not payload.recommendations:
+        return {"ok": False, "error": "No recommendations provided."}
+
+    return save_feedback(
+        user_id=user_id,
+        recommendations=payload.recommendations,
+        input_snapshot=payload.input_snapshot or {},
+    )
+
+
+# ─── USER HISTORY & LEARNING STATUS ──────────────────────────
+
+@app.get("/api/user/history")
+def api_user_history(authorization: Optional[str] = Header(None)) -> Dict:
+    user_id = _get_user_from_header(authorization)
+    if not user_id:
+        return {"ok": False, "error": "Authentication required."}
+    history = get_user_history(user_id)
+    return {"ok": True, "history": history}
+
+
+@app.get("/api/user/learning-status")
+def api_learning_status() -> Dict:
+    """Public endpoint — no auth needed. Powers the learning bar in MLDashboard."""
+    if not AUTH_AVAILABLE:
+        return {
+            "logged_samples": 0,
+            "progress_pct": 0,
+            "samples_until_retrain": 100,
+            "next_retrain_at": 100,
+            "last_retrained": None,
+            "retrain_threshold": 100,
+        }
+    return get_learning_status()
+
+
+@app.get("/api/user/profile")
+def api_user_profile(authorization: Optional[str] = Header(None)) -> Dict:
+    user_id = _get_user_from_header(authorization)
+    if not user_id:
+        return {"ok": False, "error": "Authentication required."}
+    profile = get_user_profile(user_id)
+    return {"ok": True, "profile": profile}
+
+
+# ─── MAIN ASSESSMENT ENDPOINT ────────────────────────────────
 
 @app.post("/api/run")
 def run_assessment(
     payload: CarbonInputPayload,
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
 ) -> Dict[str, Any]:
-    """
-    Run the full Carbonaire pipeline.
-    If authenticated, saves history and returns personalization context.
-    """
-    data_dict: Dict[str, Any] = {k: v for k, v in payload.dict().items() if v is not None}
-    data: CarbonInputData = inputs_from_dict(data_dict)
+
+    data_dict = {k: v for k, v in payload.dict().items() if v is not None}
+    data = inputs_from_dict(data_dict)
 
     validation = validate_inputs(data)
     if validation["errors"]:
@@ -174,43 +282,50 @@ def run_assessment(
             "ok": False,
             "errors": validation["errors"],
             "warnings": validation["warnings"],
-            "info": validation["info"],
+            "info": validation.get("info", []),
         }
 
-    result   = run_calculation(data)
+    result = run_calculation(data)
     result["validation"] = validation
 
-    engine   = RuleEngine()
+    engine = RuleEngine()
     findings = engine.evaluate(result, data)
 
-    # ML v2 — full recommendation suite
     ml_out = recommender.recommend(result, data, findings)
 
-    # Personalization — only if user is logged in
-    user_id       = _current_user(authorization)
+    # ── Remove confidence % from output (looks weak at 51%) ──
+    ml_out_clean = _strip_confidence(ml_out)
+
+    # ── Personalization for logged-in users ──
     personalization = None
-    if user_id:
-        save_assessment(user_id, data, result, ml_out)
-        personalization = get_personalization_context(user_id)
+    user_id = _get_user_from_header(authorization)
+
+    if user_id and AUTH_AVAILABLE:
+        try:
+            # Save assessment first so personalization can compare prev vs current
+            save_assessment(user_id, data, result, ml_out)
+            # Then get personalization context (compares last 2 assessments)
+            personalization = get_personalization_context(user_id, result)
+        except Exception as _e:
+            print(f"⚠️  Personalization error: {_e}")
 
     return {
         "ok": True,
         "company": {
-            "company_name":   data.company_name,
-            "industry_type":  data.industry_type,
+            "company_name":  data.company_name,
+            "industry_type": data.industry_type,
             "location_state": data.location_state,
         },
         "emissions": {
-            "monthly":           result["monthly"],
-            "annual":            result["annual"],
+            "monthly":          result["monthly"],
+            "annual":           result["annual"],
             "scope_percentages": result["scope_percentages"],
-            "scope1":            result["scope1"],
-            "scope2":            result["scope2"],
-            "scope3":            result["scope3"],
+            "scope1":           result["scope1"],
+            "scope2":           result["scope2"],
+            "scope3":           result["scope3"],
         },
-        "intensity":   result["intensity"],
-        "benchmark":   _benchmark_block(result),
-        # Rule-based findings (legacy, still included)
+        "intensity":       result["intensity"],
+        "benchmark":       _benchmark_block(result),
         "findings": [
             {
                 "severity":       f.severity.name,
@@ -222,48 +337,13 @@ def run_assessment(
             }
             for f in findings
         ],
-        # ML v2 layer — all new features
-        "ml": ml_out,
-        # Personalization (null if not logged in)
+        "ml":              ml_out_clean,
         "personalization": personalization,
-        "validation": validation,
+        "validation":      validation,
     }
 
 
-# ─────────────────────────────────────────────────────────────
-# USER HISTORY ENDPOINTS
-# ─────────────────────────────────────────────────────────────
-
-@app.get("/api/user/history")
-def api_history(
-    authorization: Optional[str] = Header(None),
-    limit: int = 10,
-):
-    user_id = _current_user(authorization)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    history = get_user_history(user_id, limit=limit)
-    return {"ok": True, "history": history}
-
-
-@app.get("/api/user/compare")
-def api_compare(authorization: Optional[str] = Header(None)):
-    """Return delta between last two assessments for the current user."""
-    user_id = _current_user(authorization)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return {"ok": True, **get_personalization_context(user_id)}
-
-
-@app.get("/api/user/learning-status")
-def api_learning_status():
-    """Public endpoint — shows continuous learning progress."""
-    return {"ok": True, **get_learning_status()}
-
-
-# ─────────────────────────────────────────────────────────────
-# DOCUMENT UPLOAD (unchanged from v1)
-# ─────────────────────────────────────────────────────────────
+# ─── DOCUMENT UPLOAD ──────────────────────────────────────────
 
 @app.post("/api/upload-doc")
 async def upload_document(doc_type: str = Form(...), file: UploadFile = File(...)):
@@ -285,7 +365,7 @@ async def upload_document(doc_type: str = Form(...), file: UploadFile = File(...
             data_obj = load_inputs_from_excel(tmp_path)
             extracted_data = asdict(data_obj)
         else:
-            return {"ok": False, "error": f"Unrecognised document type: {doc_type}"}
+            return {"ok": False, "error": f"Unrecognised doc type: {doc_type}"}
         return {"ok": True, "data": extracted_data}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -293,6 +373,8 @@ async def upload_document(doc_type: str = Form(...), file: UploadFile = File(...
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
+
+# ─── RUN ──────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import uvicorn
