@@ -60,14 +60,13 @@ function ConfidenceBar({ pct, colour }) {
       <div style={{ flex: 1, height: 5, background: "#E5E7EB", borderRadius: 3, overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: colour || "#3B82F6", borderRadius: 3, transition: "width .5s" }} />
       </div>
-      <span style={{ fontSize: 11, color: "#6B7280", minWidth: 32 }}>{pct}%</span>
     </div>
   );
 }
 
 function ScopeIcon({ scope }) {
-  const icons = { scope1: "🔥", scope2: "⚡", scope3: "☁️" };
-  return <span style={{ fontSize: 16 }}>{icons[scope] || "📊"}</span>;
+  const icons = { scope1: "[S1]", scope2: "[S2]", scope3: "[S3]" };
+  return <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--muted)" }}>{icons[scope] || "[MOD]"}</span>;
 }
 
 function DeltaChip({ delta }) {
@@ -87,7 +86,7 @@ function DeltaChip({ delta }) {
           {delta.prev_value} → {delta.curr_value} {delta.unit}
         </span>
         <span style={{ fontSize: 12, fontWeight: 600, color: colour }}>
-          {up ? "↑" : "↓"} {delta.abs_pct}%
+          {up ? "↑" : "↓"} {delta.abs_pct}
         </span>
       </div>
     </div>
@@ -112,9 +111,6 @@ function PrimaryRecommendation({ ml }) {
           }}>AI RECOMMENDATION</span>
           <PriorityBadge level={ml.ml_priority_level} score={ml.ml_priority_score} />
         </div>
-        <span style={{ fontSize: 12, color: "#6B7280" }}>
-          {ml.ml_confidence}% confident
-        </span>
       </div>
       <div style={{ fontWeight: 600, fontSize: 15, color: s.text, marginBottom: 6, textTransform: "capitalize" }}>
         {ml.ml_primary_recommendation?.replace(/_/g, " ")}
@@ -138,14 +134,14 @@ function PrimaryRecommendation({ ml }) {
 
 // ─── SECTION 2: Top-3 Recommendations ───────────────────────
 
-function Top3Recommendations({ ml }) {
+function AllRecommendations({ ml }) {
   const top3 = ml?.ml_top3_recommendations;
   if (!top3?.length) return null;
 
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", letterSpacing: "0.06em", marginBottom: 10 }}>
-        ALL RECOMMENDATIONS — RANKED BY PRIORITY
+        RECOMMENDED REDUCTION ACTIONS
       </div>
       {top3.map((rec, i) => {
         const s = priorityStyle(rec.priority_level);
@@ -229,7 +225,6 @@ function ScopeRecommendations({ ml }) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontWeight: 600, fontSize: 13, color: "#111827" }}>{label}</span>
-                  <span style={{ fontSize: 11, color: "#6B7280" }}>{rec.scope_pct}% of total</span>
                 </div>
                 <span style={{ fontSize: 12, color: s.border, fontWeight: 500 }}>{rec.action}</span>
               </div>
@@ -299,7 +294,7 @@ function PersonalizationPanel({ personalization, user, onLogin }) {
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
         <span style={{ fontWeight: 600, fontSize: 13, color: emGood ? "#166534" : "#991B1B" }}>
-          {emGood ? "📉" : "📈"} Emissions {emDir} by {Math.abs(p.emission_delta_pct)}% since last run
+          [{emGood ? "DECREASE" : "INCREASE"}] Emissions {emDir} by {Math.abs(p.emission_delta_pct)} since last run
         </span>
         <span style={{ fontSize: 11, color: "#6B7280" }}>vs {p.prev_assessment_date}</span>
       </div>
@@ -343,7 +338,7 @@ function DominantScope({ ml }) {
       <ScopeIcon scope={dom.key} />
       <div>
         <div style={{ fontWeight: 600, fontSize: 13, color: dom.colour || "#1D4ED8" }}>
-          Main emission source: {dom.scope} ({dom.pct?.toFixed(1)}%)
+          Main emission source: {dom.scope} ({dom.pct?.toFixed(1)})
         </div>
         <div style={{ fontSize: 11, color: "#6B7280" }}>{dom.description}</div>
       </div>
@@ -360,7 +355,7 @@ function LearningStatus({ status }) {
       border: "1px solid #E5E7EB", borderRadius: 10, padding: "10px 14px", marginBottom: 16,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>🤖 Continuous Learning</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>[AI] Continuous Learning</span>
         <span style={{ fontSize: 11, color: "#6B7280" }}>
           {status.samples_until_retrain} samples until next retrain
         </span>
@@ -394,7 +389,7 @@ function ClusterBadge({ ml }) {
       borderRadius: 10, padding: "9px 14px", marginBottom: 16,
       display: "flex", alignItems: "center", gap: 8,
     }}>
-      <span style={{ fontSize: 13 }}>🏷️</span>
+      <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>[TAG]</span>
       <div>
         <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600, letterSpacing: "0.06em" }}>
           EMISSION ARCHETYPE
@@ -417,22 +412,10 @@ export default function MLDashboard({
   if (!mlData) return null;
 
   return (
-    <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", maxWidth: 640 }}>
+    <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", width: "100%" }}>
 
       {/* 8. Dominant scope */}
       <DominantScope ml={mlData} />
-
-      {/* 1. ML primary recommendation + XAI */}
-      <PrimaryRecommendation ml={mlData} />
-
-      {/* 2. Top-3 (de-duplicated) */}
-      <Top3Recommendations ml={mlData} />
-
-      {/* 3. Scope-wise action plan */}
-      <ScopeRecommendations ml={mlData} />
-
-      {/* Cluster archetype */}
-      <ClusterBadge ml={mlData} />
 
       {/* 4+9. Personalization + comparison */}
       <PersonalizationPanel
@@ -441,8 +424,14 @@ export default function MLDashboard({
         onLogin={onLogin}
       />
 
-      {/* 5. Continuous learning */}
-      <LearningStatus status={learningStatus} />
+      {/* 2. All recommendations (now after personalization) */}
+      <AllRecommendations ml={mlData} />
+
+      {/* 3. Scope-wise action plan */}
+      <ScopeRecommendations ml={mlData} />
+
+      {/* Cluster archetype */}
+      <ClusterBadge ml={mlData} />
     </div>
   );
 }

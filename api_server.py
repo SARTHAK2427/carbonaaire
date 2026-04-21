@@ -40,10 +40,14 @@ try:
         save_feedback,
     )
     AUTH_AVAILABLE = True
-    print("✅ Auth system loaded.")
+    print("[OK] Auth system loaded.")
 except Exception as _auth_err:
     AUTH_AVAILABLE = False
-    print(f"⚠️  Auth system unavailable: {_auth_err}")
+    print(f"[WARN] Auth system unavailable: {_auth_err}")
+
+# ─── RAG DISABLED ───────────────────────────────────────────────
+RAG_AVAILABLE = False
+print("[INFO] RAG engine disabled by request.")
 
 # ─── APP ──────────────────────────────────────────────────────
 
@@ -51,16 +55,7 @@ app = FastAPI(title="Carbonaire API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5175",
-        "http://127.0.0.1:5175",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -343,6 +338,35 @@ def run_assessment(
     }
 
 
+# ─── RAG / AI ADVISOR ENDPOINT ───────────────────────────────
+
+class AskPayload(BaseModel):
+    question: str
+    user_data: Optional[Dict[str, Any]] = None
+
+@app.post("/api/ask")
+def api_ask(payload: AskPayload) -> Dict:
+    """
+    Accepts a natural-language question plus optional emission context,
+    retrieves relevant knowledge via ChromaDB (RAG), and generates an
+    answer using the local Mistral model via Ollama.
+    """
+    if not RAG_AVAILABLE:
+        return {
+            "ok": False,
+            "answer": (
+                "The RAG engine is not available. "
+                "Please install chromadb and sentence-transformers, "
+                "then run rag/index_documents.py to build the index."
+            ),
+        }
+    try:
+        answer = rag_get_answer(payload.question, payload.user_data)
+        return {"ok": True, "answer": answer}
+    except Exception as e:
+        return {"ok": False, "answer": f"RAG error: {e}"}
+
+
 # ─── DOCUMENT UPLOAD ──────────────────────────────────────────
 
 @app.post("/api/upload-doc")
@@ -378,4 +402,4 @@ async def upload_document(doc_type: str = Form(...), file: UploadFile = File(...
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

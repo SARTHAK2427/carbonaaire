@@ -425,7 +425,7 @@ class CarbonMLRecommenderV2:
                     "explanation": _generate_explanation(name, data, s1p, s2p, s3p),
                     "is_primary": len(top3) == 0,
                 })
-                if len(top3) == 3: break
+                if (len(top3) == 10): break
 
             # K-Means cluster
             X_scaled = self._scaler.transform(X_row)

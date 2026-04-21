@@ -85,7 +85,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("✅ Carbonaire DB initialized:", DB_PATH)
+    print("[OK] Carbonaire DB initialized:", DB_PATH)
 
 
 # Initialize immediately on import
@@ -488,7 +488,7 @@ def _auto_retrain():
     builds a training dataframe, retrains RandomForest,
     and hot-swaps the .pkl file.
     """
-    print("🔄 Auto-retrain started...")
+    print("[RE-TRAIN] Auto-retrain started...")
     try:
         import pandas as pd
         import numpy as np
@@ -504,7 +504,7 @@ def _auto_retrain():
         conn.close()
 
         if len(rows) < 20:
-            print("⚠️  Not enough feedback to retrain (need 20+). Skipping.")
+            print("[WARN] Not enough feedback to retrain (need 20+). Skipping.")
             return
 
         # ── Load original training CSV as base ──
@@ -531,7 +531,7 @@ def _auto_retrain():
                 continue
 
         if not fb_records:
-            print("⚠️  No usable feedback records. Skipping retrain.")
+            print("[WARN] No usable feedback records. Skipping retrain.")
             return
 
         fb_df = pd.DataFrame(fb_records)
@@ -545,7 +545,7 @@ def _auto_retrain():
         # ── Load existing model metadata to match feature columns ──
         meta_path = os.path.join(MODELS_DIR, "model_metadata.json")
         if not os.path.exists(meta_path):
-            print("⚠️  model_metadata.json not found. Skipping retrain.")
+            print("[WARN] model_metadata.json not found. Skipping retrain.")
             return
 
         with open(meta_path) as f:
@@ -555,7 +555,7 @@ def _auto_retrain():
         target_col   = "recommendation"
 
         if target_col not in combined.columns:
-            print("⚠️  No target column in combined data. Skipping.")
+            print("[WARN] No target column in combined data. Skipping.")
             return
 
         # Fill missing columns with 0
@@ -568,7 +568,7 @@ def _auto_retrain():
         y = combined[target_col]
 
         if len(y.unique()) < 2:
-            print("⚠️  Not enough class diversity. Skipping retrain.")
+            print("[WARN] Not enough class diversity. Skipping retrain.")
             return
 
         # ── Retrain ──
@@ -605,14 +605,14 @@ def _auto_retrain():
             from ml.recommender import get_recommender_v2
             rec = get_recommender_v2()
             rec._load_models()
-            print("✅ Recommender hot-reloaded with new model.")
+            print("[OK] Recommender hot-reloaded with new model.")
         except Exception as e:
-            print(f"⚠️  Could not hot-reload recommender: {e}")
+            print(f"[WARN] Could not hot-reload recommender: {e}")
 
-        print(f"✅ Auto-retrain complete. Trained on {len(X)} samples.")
+        print(f"[OK] Auto-retrain complete. Trained on {len(X)} samples.")
 
     except Exception as e:
-        print(f"❌ Auto-retrain failed: {e}")
+        print(f"[ERROR] Auto-retrain failed: {e}")
 
 
 # ─── LEARNING STATUS ──────────────────────────────────────────

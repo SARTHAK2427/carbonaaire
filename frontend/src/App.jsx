@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import MLDashboard from "./frontend_mldashboard";
+import SimulationDashboard from "./frontend_simulation";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 const TOKEN_KEY = "carbonaire_token";
@@ -97,15 +98,18 @@ const GLOBAL_CSS = `
     padding: 0 48px;
     justify-content: space-between;
     transition: background .3s, box-shadow .3s, border-color .3s;
-    background: rgba(7,26,20,.6);
-    backdrop-filter: blur(8px);
+    background: #071a14;
+    border-bottom: 1px solid rgba(255,255,255,.05);
   }
   .nav-bar.scrolled {
-    background: rgba(255,255,255,.97);
-    backdrop-filter: blur(16px);
+    background: #ffffff;
     border-bottom: 1px solid var(--line);
     box-shadow: var(--sh);
   }
+  .nav-left { display: flex; align-items: center; flex: 1; }
+  .nav-center { display: flex; align-items: center; justify-content: center; flex: 2; }
+  .nav-right { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex: 1; }
+
   .nav-logo {
     font-family: 'Syne', sans-serif;
     font-size: 18px; font-weight: 700;
@@ -121,6 +125,7 @@ const GLOBAL_CSS = `
     display: flex; align-items: center; justify-content: center;
   }
   .nav-hex span { font-family: 'JetBrains Mono',monospace; font-size: 12px; color: #fff; font-weight: 500; }
+  
   .nav-links { display: flex; align-items: center; gap: 2px; }
   .nav-link {
     font-family: 'Syne', sans-serif;
@@ -134,6 +139,9 @@ const GLOBAL_CSS = `
   .nav-link:hover { background: rgba(255,255,255,.12); color: #fff; }
   .nav-bar.scrolled .nav-link { color: var(--ink2); }
   .nav-bar.scrolled .nav-link:hover { background: var(--g50); color: var(--g600); }
+  
+  .nav-actions { display: flex; align-items: center; gap: 8px; }
+  
   .nav-signup {
     font-family: 'Syne', sans-serif;
     font-size: 12px; font-weight: 600;
@@ -142,23 +150,164 @@ const GLOBAL_CSS = `
     border: 1px solid rgba(255,255,255,.35); padding: 8px 18px;
     border-radius: var(--r); cursor: pointer;
     transition: all .15s;
-    margin-left: 4px;
+    margin-left: 0;
   }
   .nav-signup:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.65); color: #fff; }
   .nav-bar.scrolled .nav-signup { color: var(--g600); border-color: var(--g400); }
   .nav-bar.scrolled .nav-signup:hover { background: var(--g50); }
   .nav-cta {
     font-family: 'Syne', sans-serif;
-    font-size: 12px; font-weight: 600;
+    font-size: 11px; font-weight: 600;
     letter-spacing: .06em; text-transform: uppercase;
     background: var(--g500); color: #fff;
-    border: none; padding: 9px 22px;
+    border: none; padding: 10px 20px;
     border-radius: var(--r); cursor: pointer;
     transition: background .15s, transform .1s;
-    margin-left: 8px;
+    white-space: nowrap;
   }
   .nav-cta:hover { background: var(--g600); }
   .nav-cta:active { transform: translateY(1px); }
+
+
+  /* PROFILE DROPDOWN */
+  .profile-trigger-wrap { position: relative; display: flex; align-items: center; }
+  .profile-trigger {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 14px; cursor: pointer; border-radius: 99px;
+    transition: all .2s; border: 1px solid transparent;
+  }
+  .profile-trigger:hover { background: rgba(255,255,255,.1); }
+  .nav-bar.scrolled .profile-trigger:hover { background: var(--g50); }
+  
+  .profile-avatar {
+    width: 28px; height: 28px; background: var(--g500);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fff; font-weight: 700;
+  }
+  .profile-name {
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: #fff;
+  }
+  .nav-bar.scrolled .profile-name { color: var(--ink); }
+
+  .profile-dropdown {
+    position: absolute; top: 110%; right: 0; width: 220px;
+    background: rgba(255,255,255,.98); backdrop-filter: blur(16px);
+    border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shl); padding: 8px;
+    display: none; flex-direction: column; opacity: 0; transform: translateY(10px);
+    transition: all .2s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1001;
+  }
+  .profile-trigger-wrap:hover .profile-dropdown { display: flex; opacity: 1; transform: translateY(0); }
+
+  .dropdown-header { padding: 12px 14px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+  .dropdown-email { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  .dropdown-item {
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 500;
+    color: var(--ink2); padding: 10px 14px; border-radius: 8px;
+    background: none; border: none; text-align: left; cursor: pointer;
+    transition: all .15s; display: flex; align-items: center; gap: 10px;
+  }
+  .dropdown-item:hover { background: var(--g50); color: var(--g600); }
+  .dropdown-item.logout { color: #A04040; }
+  .dropdown-item.logout:hover { background: #FFF5F5; color: #D04040; }
+
+  /* DASHBOARD LAYOUT */
+  .dash-layout { display: flex; gap: 60px; }
+  .dash-sidebar { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; }
+  .dash-side-btn {
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
+    color: var(--muted); padding: 12px 16px; border-radius: 8px;
+    background: none; border: none; text-align: left; cursor: pointer;
+    transition: all .2s; display: flex; align-items: center; gap: 12px;
+  }
+  .dash-side-btn:hover { background: var(--g100); color: var(--g700); }
+  .dash-side-btn.active { background: var(--g500); color: #fff; }
+  .dash-main { flex: 1; min-width: 0; }
+
+  .fake-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    padding: 32px; box-shadow: var(--sh);
+  }
+  .fake-title { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--ink); margin-bottom: 24px; }
+  .fake-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  
+  .api-key-wrap {
+    background: var(--off); border: 1px solid var(--line); border-radius: 8px;
+    padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--ink2); display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .gen-anim { animation: pulse-green 1.5s infinite; }
+  @keyframes pulse-green {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+
+  .residency-toggle {
+    display: flex; gap: 1px; background: var(--line); border-radius: 8px; overflow: hidden;
+    width: fit-content; margin-bottom: 24px;
+  }
+  .res-opt {
+    padding: 10px 20px; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
+    background: #fff; border: none; cursor: pointer; color: var(--muted);
+  }
+  .res-opt.active { background: var(--g500); color: #fff; }
+
+  .goal-progress {
+    height: 12px; background: var(--g100); border-radius: 99px; overflow: hidden; margin: 20px 0;
+  }
+  .goal-fill { height: 100%; background: var(--g500); transition: width 1s ease-out; }
+
+  /* DASHBOARD */
+  .dash-page { min-height: 100vh; background: var(--off); padding-top: 100px; }
+  .dash-container { max-width: 1600px; margin: 0 auto; padding: 40px 60px; }
+  .dash-header { margin-bottom: 40px; }
+  .dash-title {
+    font-family: 'Cormorant Garamond', serif; font-size: 48px;
+    font-weight: 300; color: var(--ink); line-height: 1.1; margin-bottom: 12px;
+  }
+  .dash-sub { font-size: 16px; color: var(--muted); }
+
+  .dash-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+  .history-table-wrap {
+    background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    overflow: hidden; box-shadow: var(--sh);
+  }
+  .history-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .history-table th {
+    padding: 18px 24px; font-family: 'Syne', sans-serif; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+    background: var(--g50); border-bottom: 1px solid var(--line);
+  }
+  .history-table td {
+    padding: 20px 24px; border-bottom: 1px solid var(--off);
+    font-size: 14px; vertical-align: middle;
+  }
+  .history-table tr:hover td { background: var(--g50); }
+
+  .row-title { font-family: 'Syne', sans-serif; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .row-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+
+  .badge-intensity {
+    padding: 4px 10px; border-radius: 6px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600;
+  }
+
+  .action-btns { display: flex; gap: 8px; }
+  .btn-icon {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line);
+    background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all .2s; font-size: 12px; color: var(--ink2);
+  }
+  .btn-icon:hover { border-color: var(--g400); background: var(--g50); color: var(--g600); }
+  .btn-icon.delete:hover { border-color: #E07878; background: #FFF5F5; color: #D04040; }
+  
+  .empty-state {
+    padding: 80px 40px; text-align: center; color: var(--muted);
+  }
 
   /* SECTIONS */
   section { position: relative; }
@@ -503,7 +652,30 @@ const GLOBAL_CSS = `
     border: none; padding: 12px 28px; border-radius: var(--r);
     cursor: pointer; transition: background .15s;
   }
-  .btn-next:hover { background: var(--g700); }
+  .btn-next:hover { background: var(--g700); transform: translateY(-1px); }
+  .btn-next:active { transform: translateY(0); }
+
+  /* RESULTS TABS */
+  .res-tabs {
+    display: flex; gap: 4px; margin-bottom: 24px;
+    background: var(--off); padding: 5px; border-radius: 99px;
+    border: 1px solid var(--line); width: fit-content;
+  }
+  .res-tab-btn {
+    padding: 10px 24px; border-radius: 99px; border: none;
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
+    color: var(--muted); cursor: pointer; transition: all .2s;
+    background: transparent; letter-spacing: .02em;
+  }
+  .res-tab-btn:hover { color: var(--g600); background: rgba(34,143,114,.05); }
+  .res-tab-btn.active { background: var(--white); color: var(--g600); box-shadow: var(--sh); }
+
+  .fade-in { animation: fadeIn .4s ease-out forwards; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   .btn-back {
     font-family: 'Syne', sans-serif;
     font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
@@ -1059,20 +1231,211 @@ const GLOBAL_CSS = `
   .modal-success-title { font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:300; color:var(--ink); margin-bottom:10px; }
   .modal-success-sub { font-size:15px; color:var(--muted); line-height:1.6; }
 
-  /* Footer */
-  .footer { background: var(--ink); padding: 56px 80px 40px; }
-  .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
-  .footer-brand { }
-  .footer-logo { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 12px; letter-spacing: -.02em; }
-  .footer-tagline { font-size: 14px; color: rgba(255,255,255,.4); line-height: 1.6; max-width: 280px; }
-  .footer-col-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.4); margin-bottom: 16px; }
-  .footer-link { display: block; font-size: 14px; color: rgba(255,255,255,.55); margin-bottom: 10px; cursor: pointer; transition: color .15s; }
-  .footer-link:hover { color: var(--g300); }
-  .footer-bottom { border-top: 1px solid rgba(255,255,255,.08); padding-top: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
-  .footer-copy { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(255,255,255,.3); letter-spacing: .06em; }
-  .footer-sources { display: flex; flex-direction: column; gap: 4px; text-align: right; }
-  .footer-source-title { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.25); margin-bottom: 6px; }
-  .footer-source-item { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: rgba(255,255,255,.2); letter-spacing: .04em; }
+  /* Enhanced Footer Style */
+  .footer {
+    background: #061510;
+    padding: 120px 80px 60px;
+    color: #fff;
+    border-top: 1px solid rgba(255,255,255,.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .footer::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(circle at 10% 20%, rgba(46,168,136,.08) 0%, transparent 40%);
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr;
+    gap: 48px;
+    margin-bottom: 100px;
+    position: relative; z-index: 1;
+  }
+  .footer-brand { display: flex; flex-direction: column; gap: 28px; }
+  .footer-logo {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 26px; font-weight: 700; color: #fff;
+    letter-spacing: -.03em;
+  }
+  .footer-motto {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px; font-weight: 400; font-style: italic;
+    color: #E8F7F3; line-height: 1.3;
+    max-width: 360px;
+  }
+  .footer-mission {
+    font-size: 14.5px; color: rgba(255,255,255,.5);
+    line-height: 1.8; max-width: 400px;
+    font-weight: 300;
+  }
+  .footer-contact { margin-top: 10px; }
+  .footer-col-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px; font-weight: 700; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--g400);
+    margin-bottom: 32px;
+  }
+  .footer-link-list { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+  .footer-link {
+    font-family: inherit;
+    font-size: 14.5px; color: rgba(255,255,255,.5);
+    background: none; border: none; padding: 0;
+    text-decoration: none; cursor: pointer;
+    transition: all .2s;
+    border-bottom: 1px solid transparent;
+    width: fit-content;
+    text-align: left;
+    font-weight: 300;
+  }
+  .footer-link:hover { color: var(--g300); transform: translateX(6px); }
+  
+  .footer-bottom {
+    border-top: 1px solid rgba(255,255,255,.08);
+    padding-top: 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: relative; z-index: 1;
+  }
+  .footer-copy {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: rgba(255,255,255,.2);
+    letter-spacing: .05em;
+  }
+  .footer-legal { display: flex; gap: 32px; }
+  .footer-legal-link {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: rgba(255,255,255,.2);
+    background: none; border: none; padding: 0;
+    text-decoration: none; transition: color .15s;
+    text-transform: uppercase; letter-spacing: .1em;
+    cursor: pointer;
+  }
+  .footer-legal-link:hover { color: var(--g300); }
+
+  .footer-socials { display: flex; gap: 14px; margin-top: 10px; }
+  .footer-social-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.4); cursor: pointer; transition: all .3s cubic-bezier(0.16, 1, 0.3, 1);
+    font-size: 13px; font-family: 'Syne', sans-serif; font-weight: 600;
+  }
+  .footer-social-icon:hover { background: var(--g600); color: #fff; transform: translateY(-4px); border-color: var(--g400); }
+
+  /* Transparency Page Styles */
+
+  /* Transparency Page Theme Alignment */
+  .trans-page { background: var(--white); min-height: 100vh; padding-top: 68px; }
+  .trans-hero {
+    background: #061510; padding: 140px 80px 100px; position: relative; overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .trans-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: 
+      radial-gradient(circle at 80% 20%, rgba(46,168,136,.15) 0%, transparent 50%),
+      radial-gradient(circle at 20% 80%, rgba(46,168,136,.05) 0%, transparent 50%);
+  }
+  .trans-hero-tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--g400);
+    letter-spacing: .25em; text-transform: uppercase; margin-bottom: 24px; display: block;
+  }
+  .trans-hero-title {
+    font-family: 'Cormorant Garamond', serif; font-size: clamp(48px, 6vw, 84px);
+    font-weight: 300; color: #E8F7F3; line-height: .95; letter-spacing: -.03em;
+    max-width: 900px;
+  }
+  .trans-container {
+    max-width: 1440px; margin: 0 auto; display: grid;
+    grid-template-columns: 320px 1fr; gap: 100px; padding: 100px 80px;
+  }
+  .trans-sidebar { position: sticky; top: 120px; height: fit-content; }
+  .trans-nav-title {
+    font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .15em; color: var(--g600);
+    margin-bottom: 32px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
+  }
+  .trans-nav-item {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    padding: 14px 20px; font-size: 14px; color: var(--muted); cursor: pointer;
+    border-radius: 6px; transition: all .2s cubic-bezier(.4, 0, .2, 1); margin-bottom: 6px;
+    font-family: 'Syne', sans-serif; font-weight: 500;
+  }
+  .trans-nav-item:hover { background: var(--g50); color: var(--g800); padding-left: 24px; }
+  .trans-nav-item.active { background: var(--g600); color: #fff; font-weight: 600; box-shadow: 0 4px 12px rgba(34,143,114,.2); }
+
+  .trans-section { margin-bottom: 120px; scroll-margin-top: 140px; animation: fadeUp .6s ease forwards; }
+  .trans-section-tag {
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--g500);
+    letter-spacing: .1em; text-transform: uppercase; margin-bottom: 20px; display: flex; align-items: center; gap:12px;
+  }
+  .trans-section-tag::before { content: ""; width: 24px; height: 1px; background: var(--g300); }
+  .trans-section-title {
+    font-family: 'Cormorant Garamond', serif; font-size: 48px; font-weight: 300;
+    color: var(--ink); margin-bottom: 32px; letter-spacing: -.02em; line-height: 1.1;
+  }
+  .trans-text { 
+    font-family: 'Cormorant Garamond', serif; font-size: 19px; color: var(--muted); 
+    line-height: 1.7; margin-bottom: 32px; max-width: 760px; font-weight: 400;
+  }
+  
+  .data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; margin-bottom: 48px; }
+  .data-card {
+    background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 40px;
+    box-shadow: var(--sh); transition: all .3s;
+  }
+  .data-card:hover { transform: translateY(-4px); box-shadow: var(--shm); border-color: var(--g300); }
+  .data-card-title {
+    font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700;
+    color: var(--ink2); margin-bottom: 14px;
+  }
+  .data-card-text { font-family: 'Cormorant Garamond', serif; font-size: 16px; color: var(--muted); line-height: 1.6; font-weight: 400; }
+
+  .method-table-wrap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 32px 0 48px; }
+  .method-table {
+    width: 100%; border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  }
+  .method-table th {
+    text-align: left; padding: 20px; background: var(--g50);
+    border-bottom: 1px solid var(--line); color: var(--g700); text-transform: uppercase; letter-spacing: .08em;
+    font-size: 11px; font-weight: 600;
+  }
+  .method-table td { padding: 18px 20px; border-bottom: 1px solid var(--line); color: var(--ink2); }
+  .method-table tr:last-child td { border-bottom: none; }
+  .method-table tr:hover { background: #fcfdfc; }
+  
+  .formula-box {
+    background: #061510; border-radius: 12px; padding: 48px;
+    margin-bottom: 48px; position: relative; overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0,0,0,.15);
+  }
+  .formula-box::after {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--g400);
+  }
+  .formula-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--g400);
+    text-transform: uppercase; margin-bottom: 16px; letter-spacing: .15em;
+  }
+  .formula-text {
+    font-family: 'JetBrains Mono', monospace; font-size: 22px; color: #E8F7F3;
+    letter-spacing: .05em; font-weight: 400;
+  }
+  .formula-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,.35); margin-top: 16px; }
+
+  .research-item {
+    background: var(--off); padding: 48px; border-radius: 12px; border: 1px solid var(--line);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start;
+    transition: all .3s;
+  }
+  .research-item:hover { border-color: var(--g300); background: var(--white); box-shadow: var(--shm); }
+  .blog-card {
+    background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .blog-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--g500); text-transform: uppercase; letter-spacing: .1em; }
+  .blog-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--ink); }
+  .blog-excerpt { font-family: 'Cormorant Garamond', serif; font-size: 15px; color: var(--muted); line-height: 1.5; }
 
   /* Utility */
   .flex { display: flex; }
@@ -1280,6 +1643,435 @@ function GaugeSVG({ value, max = 9, color }) {
         return <circle key={i} cx={x} cy={y} r="2" fill="var(--line)" />;
       })}
     </svg>
+  );
+}
+
+
+
+/* ── PROFILE DROPDOWN COMPONENT ─────────────────────────────────────────── */
+const ProfileDropdown = ({ user, onLogout, onDashboard }) => {
+  return (
+    <div className="profile-trigger-wrap">
+      <div className="profile-trigger">
+        <div className="profile-avatar">{user.name.charAt(0).toUpperCase()}</div>
+        <div className="profile-name">{user.name}</div>
+      </div>
+      <div className="profile-dropdown">
+        <div className="dropdown-header">
+          <div className="profile-name" style={{ color: "var(--ink2)", fontSize: 14 }}>{user.name}</div>
+          <div className="dropdown-email">{user.email}</div>
+        </div>
+        <button className="dropdown-item" onClick={() => onDashboard("assessments")}>
+          User Dashboard
+        </button>
+        <button className="dropdown-item" onClick={() => onDashboard("api_keys")}>
+          API Access & Keys
+        </button>
+        <button className="dropdown-item" onClick={() => onDashboard("data_residency")}>
+          Data Residency Settings
+        </button>
+        <button className="dropdown-item" style={{ borderTop: "1px solid var(--off)" }} onClick={() => onDashboard("account")}>
+          Account Settings
+        </button>
+        <button className="dropdown-item logout" onClick={onLogout}>
+          Log Out
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/* ── UNIFIED NAVBAR COMPONENT ─────────────────────────────────────────── */
+const Navbar = ({ page, user, setUser, setPage, scrolled, setShowSignup, goCalculator, result, setStep }) => {
+  const isScrolled = scrolled || (page !== "home" && page !== "transparency");
+
+  const onLogout = () => {
+    localStorage.removeItem("carbonaire_token");
+    localStorage.setItem("carbonaire_user", "");
+    setUser(null);
+    setPage("home");
+  };
+
+  const scrollTo = (sectionId) => {
+    if (page !== "home") {
+      setPage("home");
+      setTimeout(() => {
+        document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+      }, 300);
+    } else {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  return (
+    <nav className={`nav-bar${isScrolled ? " scrolled" : ""}`} style={page === "ai" ? { background: "#071a14", borderBottom: "1px solid rgba(255,255,255,.06)" } : {}}>
+      <div className="nav-left">
+        <div className="nav-logo" onClick={() => setPage("home")}>
+          <div className="nav-hex"><span>C</span></div>
+          <span style={page === "ai" ? { color: "#E8F7F3" } : {}}>Carbonaire</span>
+        </div>
+      </div>
+
+      <div className="nav-center">
+        <div className="nav-links">
+          <button className="nav-link" onClick={() => setPage("home")}>Home</button>
+          <button className="nav-link" onClick={() => scrollTo("mission")}>Mission</button>
+          <button className="nav-link" onClick={() => scrollTo("journey")}>Journey</button>
+          <button className="nav-link" onClick={() => scrollTo("what-we-do")}>Solutions</button>
+          {page === "results" ? (
+             <button className="nav-link" onClick={() => { setStep(0); goCalculator(); }}>Recalculate</button>
+          ) : (
+             <button className="nav-link" onClick={goCalculator}>Calculator</button>
+          )}
+          {result && page !== "results" && <button className="nav-link" onClick={() => setPage("results")}>Results</button>}
+        </div>
+      </div>
+
+      <div className="nav-right">
+        <div className="nav-actions">
+           {page === "results" && (
+             <button className="nav-cta" onClick={() => setPage("ai")}>AI Advisor</button>
+           )}
+           {user ? (
+             <ProfileDropdown 
+               user={user} 
+               onDashboard={(tab) => {
+                 setPage("dashboard");
+                 // We'll need a way to pass the tab to the dashboard. 
+                 // Since Dashboard is a child of App, we can use a state.
+                 setDashTab(tab || "assessments");
+               }}
+               onLogout={onLogout} 
+             />
+           ) : (
+             <>
+               <button className="nav-link" onClick={() => setShowSignup(true)}>Sign In</button>
+               <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
+             </>
+           )}
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+
+/* ── TRANSPARENCY PAGE ───────────────────────────────────────────────────── */
+function TransparencyPage({ setPage, goCalculator, user, setUser, setShowSignup, page, scrolled, result, setStep }) {
+  const [activeSec, setActiveSec] = useState("methodology");
+  const sections = [
+    { id: "methodology", label: "Core Methodology" },
+    { id: "sources", label: "Authoritative Sources" },
+    { id: "research", label: "Research & Blogs" },
+    { id: "governance", label: "Security & Governance" },
+    { id: "platform", label: "Architecture" },
+  ];
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSec(entry.target.id);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: "-10% 0px -60% 0px" }
+    );
+
+    sections.forEach((s) => {
+      const el = document.getElementById(s.id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToAnchor = (sectionId) => {
+    setActiveSec(sectionId);
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  return (
+    <div className="trans-page">
+      <style>{GLOBAL_CSS}</style>
+
+      <Navbar 
+        page={page} 
+        user={user} 
+        setUser={setUser} 
+        setPage={setPage} 
+        scrolled={scrolled} 
+        setShowSignup={setShowSignup} 
+        goCalculator={goCalculator} 
+        result={result}
+        setStep={setStep}
+      />
+
+      <div className="trans-hero">
+        <span className="trans-hero-tag">Transparency & Methodology Documentation</span>
+        <h1 className="trans-hero-title">Engineering Carbon Accountability with Data Rigor</h1>
+      </div>
+
+      <div className="trans-container">
+        <aside className="trans-sidebar">
+          <div className="trans-nav-title">Documentation Hub</div>
+          {sections.map(s => (
+            <button key={s.id} 
+              className={`trans-nav-item${activeSec === s.id ? " active" : ""}`}
+              onClick={() => {
+                setActiveSec(s.id);
+                document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+          <div style={{ marginTop: 40, padding: 24, background: "var(--g50)", borderRadius: 12, border: "1px solid var(--line)" }}>
+            <div style={{ fontFamily: "Syne,sans-serif", fontSize: 13, fontWeight: 700, color: "var(--g800)", marginBottom: 8 }}>Auditor Access</div>
+            <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 14, color: "var(--muted)", lineHeight: 1.5, marginBottom: 16 }}>Enterprise clients can request detailed audit trails for every calculation performed.</div>
+            <button className="nav-cta" style={{ width: "100%", marginLeft: 0 }}>Request Data Export</button>
+          </div>
+        </aside>
+
+        <main className="trans-content">
+          <section id="methodology" className="trans-section">
+            <div className="trans-section-tag">Methodology 01</div>
+            <h2 className="trans-section-title">GHG Protocol Alignment</h2>
+            <p className="trans-text">Carbonaire utilizes the <strong>GHG Protocol Corporate Accounting and Reporting Standard</strong>. We categorize emissions into three distinct scopes to provide a comprehensive view of your environmental impact.</p>
+            
+            <div className="data-grid">
+              <div className="data-card">
+                <div className="data-card-title">Scope 1: Direct</div>
+                <p className="data-card-text">Emissions from sources owned or controlled by the company, such as diesel generators and company-owned vehicle fleets.</p>
+              </div>
+              <div className="data-card">
+                <div className="data-card-title">Scope 2: Energy</div>
+                <p className="data-card-text">Indirect emissions from the generation of purchased electricity consumed by the company. This is the primary driver for IT firms.</p>
+              </div>
+              <div className="data-card" style={{ gridColumn: "span 2" }}>
+                <div className="data-card-title">Scope 3: Value Chain</div>
+                <p className="data-card-text">All other indirect emissions that occur in the company's value chain, including cloud infrastructure (AWS/Azure/GCP), hardware manufacturing, and business travel.</p>
+              </div>
+            </div>
+
+            <div className="formula-box">
+              <div className="formula-label">Core Calculation Engine</div>
+              <div className="formula-text">Emission = Activity Data × Emission Factor (EF)</div>
+              <div className="formula-sub">Example: kWh × (kg CO2e / kWh) = total CO2e. We use GWP100 constants from IPCC AR6.</div>
+            </div>
+          </section>
+
+          <section id="sources" className="trans-section">
+            <div className="trans-section-tag">Sources 02</div>
+            <h2 className="trans-section-title">Peer-Reviewed Data & Citations</h2>
+            <p className="trans-text">Our engine is built upon authoritative datasets to ensure scientific validity and regulatory compliance.</p>
+            <ul style={{ listStyle: "none", padding: 0 }}>
+              {[
+                { name: "IPCC Sixth Assessment Report (AR6)", data: "The global gold standard for Global Warming Potential (GWP) values. We utilize AR6 GWP100 constants for all greenhouse gas conversions." },
+                { name: "CEA India User Guide V19.0", data: "Primary source for All India Grid Emission Factors. Includes regional intensity variations for Maharashtra, Karnataka, and Gujarat." },
+                { name: "GHG Protocol Tech Guidance", data: "Standardized procedures for calculating Scope 3 emissions from purchased goods and services." },
+                { name: "IEA World Energy Outlook", data: "Global benchmarks for data center energy intensity and renewable transition paths." }
+              ].map(s => (
+                <li key={s.name} style={{ padding: "24px 0", borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ fontFamily: "Syne,sans-serif", fontWeight: 700, fontSize: 16, color: "var(--ink)", marginBottom: 8 }}>{s.name}</div>
+                  <div className="data-card-text">{s.data}</div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section id="research" className="trans-section">
+            <div className="trans-section-tag">Insights 03</div>
+            <h2 className="trans-section-title">Current Research & Blogs</h2>
+            <p className="trans-text">Explore our latest findings on sustainable technology and sector-specific carbon benchmarking.</p>
+            
+            <div className="research-item" style={{ marginBottom: 40 }}>
+               <div className="blog-card">
+                  <span className="blog-tag">Whitepaper</span>
+                  <h3 className="blog-title">OCR-Based Utility Audit</h3>
+                  <p className="blog-excerpt">Exploring how Tesseract-based ML models can verify utility bill data to eliminate "green-guessing" in corporate disclosures.</p>
+                  <button className="footer-link" style={{ marginTop: "auto", color: "var(--g600)" }}>Read Paper →</button>
+               </div>
+               <div className="blog-card">
+                  <span className="blog-tag">Benchmark</span>
+                  <h3 className="blog-title">India Tech Outlook 2026</h3>
+                  <p className="blog-excerpt">A longitudinal study of 400+ Indian IT firms shows a 14% drop in Scope 2 intensity due to grid decarbonization.</p>
+                  <button className="footer-link" style={{ marginTop: "auto", color: "var(--g600)" }}>View Data →</button>
+               </div>
+            </div>
+
+            <div className="research-item">
+               <div className="blog-card">
+                  <span className="blog-tag">Blog</span>
+                  <h3 className="blog-title">The Cloud Efficiency Gap</h3>
+                  <p className="blog-excerpt">Why moving to serverless can reduce your compute footprint by up to 60% compared to legacy EC2 instances.</p>
+                  <button className="footer-link" style={{ marginTop: "auto", color: "var(--g600)" }}>Read More →</button>
+               </div>
+               <div className="blog-card">
+                  <span className="blog-tag">Blog</span>
+                  <h3 className="blog-title">Green Coding Principles</h3>
+                  <p className="blog-excerpt">Practical steps for engineers to reduce energy consumption through algorithmic efficiency and payload optimization.</p>
+                  <button className="footer-link" style={{ marginTop: "auto", color: "var(--g600)" }}>Read More →</button>
+               </div>
+            </div>
+          </section>
+
+          <section id="governance" className="trans-section">
+            <div className="trans-section-tag">Security 04</div>
+            <h2 className="trans-section-title">Data Security & Compliance</h2>
+            <p className="trans-text">Carbonaire follows strict data residency and security protocols to protect sensitive corporate operational data.</p>
+            <div className="data-grid">
+              <div className="data-card" style={{ borderTop: "4px solid var(--g500)" }}>
+                <div className="data-card-title">AES-256 Encryption</div>
+                <p className="data-card-text">All organizational inputs and calculated results are encrypted at rest and in transit using military-grade AES-256 protocols.</p>
+              </div>
+              <div className="data-card" style={{ borderTop: "4px solid var(--g500)" }}>
+                <div className="data-card-title">SOC 2 Alignment</div>
+                <p className="data-card-text">Our data handling processes are designed to align with AICPA SOC 2 Type II trust principles for security and confidentiality.</p>
+              </div>
+              <div className="data-card" style={{ gridColumn: "span 2" }}>
+                <div className="data-card-title">Data Anonymization</div>
+                <p className="data-card-text">Sector benchmarking data is strictly anonymized. Individual company metrics are never shared with third parties without explicit consent.</p>
+              </div>
+            </div>
+          </section>
+
+          <section id="platform" className="trans-section">
+            <div className="trans-section-tag">Architecture 05</div>
+            <h2 className="trans-section-title">Platform Infrastructure</h2>
+            <p className="trans-text">Carbonaire is a cloud-native platform designed for high availability and verifiable accuracy.</p>
+            <div className="data-grid">
+              <div className="data-card">
+                <div className="data-card-title">Precision Engine</div>
+                <p className="data-card-text">Built on Python/FastAPI for high-concurrency calculation requests and sub-millisecond processing.</p>
+              </div>
+              <div className="data-card">
+                <div className="data-card-title">Audit Log</div>
+                <p className="data-card-text">Maintains immutable records of calculation versions and emission factor timestamps for audit traceability.</p>
+              </div>
+            </div>
+          </section>
+
+          <section id="simulation-principles" className="trans-section">
+            <div className="trans-section-tag">Simulation 06</div>
+            <h2 className="trans-section-title">Simulation Principles</h2>
+            <p className="trans-text">The Carbonaire Simulation Engine uses dynamic modeling to project long-term environmental and financial outcomes.</p>
+            <div className="data-grid">
+              <div className="data-card" style={{ background: "var(--g50)", border: "1px solid var(--g200)" }}>
+                <div className="data-card-title">Dynamic Modeling</div>
+                <p className="data-card-text">Our engine adjusts emissions based on operational levers—modeling how renewable adoption reduces Scope 2 while cloud migration shifts footprints to Scope 3.</p>
+              </div>
+              <div className="data-card" style={{ background: "var(--g50)", border: "1px solid var(--g200)" }}>
+                <div className="data-card-title">50-Year Trajectory</div>
+                <p className="data-card-text">Long-term projections utilize a 2% CAGR for business growth, overlaid with strategic interventions to show your net-zero alignment path.</p>
+              </div>
+              <div className="data-card" style={{ gridColumn: "span 2", background: "var(--g800)", color: "#fff" }}>
+                <div className="data-card-title" style={{ color: "var(--g300)" }}>Financial ROI Logic</div>
+                <p className="data-card-text" style={{ color: "rgba(255,255,255,0.7)" }}>Operational savings are calculated by multiplying carbon avoidance (tonnes) with local energy pricing and proxy carbon tax rates (approx. ₹12,500/tCO2e).</p>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+      <Footer setPage={setPage} goCalculator={goCalculator} />
+    </div>
+  );
+}
+
+/* ── FOOTER COMPONENT ─────────────────────────────────────────────────────── */
+function Footer({ setPage, goCalculator }) {
+  const scrollTo = (pageId, sectionId) => {
+    setPage(pageId);
+    setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+    }, 150);
+  };
+
+  const scrollToSection = (sectionId) => {
+    setPage("home");
+    setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+    }, 300);
+  };
+
+  return (
+    <footer className="footer">
+      <div className="footer-grid">
+        <div className="footer-brand">
+          <div className="footer-logo">
+            <div className="nav-hex" style={{ width: 34, height: 34 }}><span>C</span></div>
+            Carbonaire
+          </div>
+          <div className="footer-mission" style={{ color: "var(--g300)", fontWeight: 500, lineHeight: 1.6 }}>
+            Advanced Carbon Intelligence for the Global Technology Sector. Measure, benchmark, and decarbonize your digital infrastructure with precision engineering and authoritative data rigor.
+          </div>
+          <div className="footer-contact">
+            <div className="footer-col-title" style={{ marginBottom: 12 }}>Corporate Inquiry</div>
+            <a href="mailto:carbonaire@gmail.com" className="footer-link">carbonaire@gmail.com</a>
+          </div>
+          <div className="footer-socials">
+            {['X', 'LinkedIn', 'Instagram'].map(s => (
+              <div key={s} className="footer-social-icon">{s}</div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="footer-col-title">Transparency</div>
+          <div className="footer-link-list">
+            <button className="footer-link" onClick={() => scrollTo("transparency", "sources")}>Research Papers</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "methodology")}>Methodology Hub</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "research")}>Our Research</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "methodology")}>GHG Scopes (1, 2, 3)</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "simulation-principles")}>Simulation Principles</button>
+          </div>
+        </div>
+
+        <div>
+          <div className="footer-col-title">Our Company</div>
+          <div className="footer-link-list">
+            <button className="footer-link" onClick={() => scrollToSection("mission")}>Corporate Motto</button>
+            <button className="footer-link" onClick={() => scrollToSection("mission")}>Our Mission</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "research")}>Impact Blogs</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "research")}>Case Studies</button>
+          </div>
+        </div>
+
+        <div>
+          <div className="footer-col-title">Platform Hub</div>
+          <div className="footer-link-list">
+            <button className="footer-link" onClick={() => setPage("home")}>Home Interface</button>
+            <button className="footer-link" onClick={() => scrollToSection("mission")}>Mission Profile</button>
+            <button className="footer-link" onClick={() => scrollToSection("journey")}>Operational Journey</button>
+            <button className="footer-link" onClick={() => scrollToSection("what-we-do")}>Product Solutions</button>
+            <button className="footer-link" onClick={goCalculator}>Carbon Calculator</button>
+          </div>
+        </div>
+
+        <div>
+          <div className="footer-col-title">Security & Trust</div>
+          <div className="footer-link-list">
+            <button className="footer-link" onClick={() => scrollTo("transparency", "governance")}>Security & Compliance</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "governance")}>Data Security Rules</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "governance")}>Encryption Protocols</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "governance")}>SOC 2 Alignment</button>
+            <button className="footer-link" onClick={() => scrollTo("transparency", "governance")}>Compliance Guide</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="footer-bottom">
+        <div className="footer-copy">
+          © 2026 CARBONAIRE GLOBAL · EMISSION FACTORS SOURCED FROM PEER-REVIEWED DATASETS (CEA, GHG PROTOCOL, IPCC AR6).
+        </div>
+        <div className="footer-legal">
+          <button className="footer-legal-link" onClick={() => scrollTo("transparency", "governance")}>Privacy Policy</button>
+          <button className="footer-legal-link" onClick={() => scrollTo("transparency", "governance")}>Terms of Service</button>
+          <button className="footer-legal-link" onClick={() => scrollTo("transparency", "governance")}>Security Policy</button>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -1688,6 +2480,8 @@ const INIT_FORM = {
 /* ── MAIN APP ─────────────────────────────────────────────────────────────── */
 export default function App() {
   const [page, setPage] = useState("home");
+  const [dashTab, setDashTab] = useState("assessments");
+  const [simTarget, setSimTarget] = useState(null);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(INIT_FORM);
   const [result, setResult] = useState(null);
@@ -1699,6 +2493,7 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [resultsTab, setResultsTab] = useState("insights"); // "insights" or "recommendations"
   const [mlData, setMlData] = useState(null);
   const [personalization, setPersonalization] = useState(null);
   const [learningStatus, setLearningStatus] = useState(null);
@@ -1753,12 +2548,12 @@ export default function App() {
       <div className="verify-preview">
         {isImg
           ? <img src={previewUrl} alt="Document Preview" />
-          : <div className="verify-preview-icon">📄</div>
+          : <div className="verify-preview-icon">[DOC]</div>
         }
         <div className="verify-preview-label">{doc.name}</div>
       </div>
       <div className="verify-content">
-        <div className="verify-title">📎 {title}</div>
+        <div className="verify-title">[FILE] {title}</div>
 
         {/* Show extracted values */}
         {hasExtracted && (
@@ -1769,7 +2564,7 @@ export default function App() {
               color: "var(--g600)", marginBottom: 8,
               display: "flex", alignItems: "center", gap: 6
             }}>
-              ✅ Extracted from document
+              [VALID] Extracted from document
             </div>
             <div className="verify-data-grid">
               {Object.entries(extracted).map(([label, val]) => (
@@ -1795,7 +2590,7 @@ export default function App() {
               letterSpacing: ".1em", textTransform: "uppercase",
               color: "#B45309", marginBottom: 6
             }}>
-              ⚠️ Could not find — please enter below
+              [WARN] Could not find — please enter below
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {Object.keys(missing).map(label => (
@@ -1820,13 +2615,13 @@ export default function App() {
             fontFamily: "JetBrains Mono,monospace", fontSize: 10,
             color: "var(--g700)"
           }}>
-            ✅ All required data extracted — no manual entry needed for this section.
+            [DONE] All required data extracted — no manual entry needed for this section.
           </div>
         )}
       </div>
     </div>
-  );
-};
+    );
+  };
 
   const MLInsightsCard = ({ data }) => {
     if (!data || !data.ml_available) return null;
@@ -1834,7 +2629,7 @@ export default function App() {
       <div className="res-card fade-up" style={{ borderTop: "4px solid var(--g500)", marginBottom: 28, background: "linear-gradient(135deg, #fff 0%, #f0faf7 100%)" }}>
         <div className="res-card-header" style={{ background: "transparent", borderBottom: "1px solid rgba(45,168,136,.1)" }}>
           <div className="res-card-title" style={{ color: "var(--g600)", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 16 }}>✨</span> ML-Powered Emission Archetype
+            <span style={{ fontSize: 16 }}>[AI]</span> ML-Powered Emission Archetype
           </div>
         </div>
         <div className="res-card-body" style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 24 }}>
@@ -1844,7 +2639,7 @@ export default function App() {
               {data.ml_cluster_description}
             </div>
             <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>
-              The ML model identified this emission pattern with <strong>{data.ml_confidence}% confidence</strong>.
+              The ML model identified this emission pattern with <strong>{data.ml_confidence} confidence</strong>.
               Priority Score: <strong>{data.ml_priority_score}/10</strong>.
             </div>
             {data.ml_primary_message && (
@@ -1856,7 +2651,7 @@ export default function App() {
           </div>
           <div style={{ width: 100, textAlign: "center" }}>
             <div style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--g500)", marginBottom: 4, textTransform: "uppercase" }}>Confidence</div>
-            <div style={{ fontSize: 28, fontFamily: "Cormorant Garamond, serif", color: "var(--g600)" }}>{data.ml_confidence}%</div>
+            <div style={{ fontSize: 28, fontFamily: "Cormorant Garamond, serif", color: "var(--g600)" }}>{data.ml_confidence}</div>
             <div style={{ height: 4, background: "var(--g100)", borderRadius: 99, marginTop: 4, overflow: "hidden" }}>
               <div style={{ width: `${data.ml_confidence}%`, height: "100%", background: "var(--g500)" }} />
             </div>
@@ -1864,15 +2659,26 @@ export default function App() {
         </div>
           {data.ml_top3_recommendations?.length > 0 && (
             <div>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>Top 3 ML Suggestions</div>
+              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>Prioritised ML Recommendations</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                 {data.ml_top3_recommendations.map((rec, idx) => (
                   <div key={`${rec.recommendation}-${idx}`} style={{ padding: "14px 14px 12px", border: "1px solid rgba(45,168,136,.12)", borderRadius: 4, background: "#fff" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                       <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--g500)", textTransform: "uppercase" }}>Rank {idx + 1}</div>
-                      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--muted)" }}>{rec.confidence}%</div>
+                      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--muted)" }}>{rec.confidence}</div>
                     </div>
-                    <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.5 }}>{rec.message}</div>
+                    <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.5, marginBottom: 12 }}>{rec.message}</div>
+                    <div>
+                      <button 
+                        className="btn-back" 
+                        style={{ padding: "6px 12px", fontSize: "9px", borderColor: "var(--line)", color: "var(--g600)", width: "100%" }}
+                        onClick={() => {
+                           setSimTarget({ sev: "HIGH", cat: "ML Priority", scope: "Analysis", rec: rec.message });
+                           setPage("simulation");
+                        }}>
+                         Simulate Impact
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1883,12 +2689,12 @@ export default function App() {
     );
   };
 
-
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
 
   useEffect(() => { window.scrollTo(0, 0); }, [page]);
 
@@ -2200,12 +3006,39 @@ export default function App() {
     }
   };
 
-  const sendChat = () => {
+  const sendChat = async () => {
     if (!chatInput.trim()) return;
     const t = chatInput.trim();
     setMsgs(p => [...p, { role: "user", text: t }]);
-    setChatInput(""); setTyping(true);
-    setTimeout(() => { setMsgs(p => [...p, { role: "ai", text: aiReply(t) }]); setTyping(false); }, 700 + Math.random() * 700);
+    setChatInput("");
+    setTyping(true);
+
+    // Build user emission context if a result is available
+    const user_data = result ? {
+      total:     result.combined?.ann ?? result.ann ?? 0,
+      scope1:    result.combined?.s1  ?? result.s1  ?? 0,
+      scope2:    result.combined?.s2  ?? result.s2  ?? 0,
+      scope3:    result.combined?.s3  ?? result.s3  ?? 0,
+      intensity: result.intensity ?? 0,
+      band:      result.band?.band ?? "unknown",
+      renewable: form.renewablePct ?? 0,
+      employees: form.employees ?? 0,
+      servers:   form.serversOnprem ?? 0,
+    } : null;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: t, user_data }),
+      });
+      const data = await res.json();
+      setMsgs(p => [...p, { role: "ai", text: data.answer || "Sorry, I couldn't generate a response." }]);
+    } catch (err) {
+      setMsgs(p => [...p, { role: "ai", text: "Could not reach the AI backend. Make sure the server is running on port 8000." }]);
+    } finally {
+      setTyping(false);
+    }
   };
 
   const STEPS = ["Company Profile", "Fuel & Generators", "Electricity & Devices", "Cloud & Services"];
@@ -2219,28 +3052,17 @@ export default function App() {
         {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
 
         {/* NAV */}
-        <nav className={`nav-bar${scrolled ? " scrolled" : ""}`}>
-          <div className="nav-logo" onClick={() => setPage("home")}>
-            <div className="nav-hex"><span>C</span></div>
-            Carbonaire
-          </div>
-          <div className="nav-links">
-            <button className="nav-link" onClick={() => document.getElementById("mission")?.scrollIntoView({ behavior: "smooth" })}>Our Mission</button>
-            <button className="nav-link" onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })}>About</button>
-            <button className="nav-link" onClick={() => document.getElementById("journey")?.scrollIntoView({ behavior: "smooth" })}>How It Works</button>
-            <button className="nav-link" onClick={() => document.getElementById("what-we-do")?.scrollIntoView({ behavior: "smooth" })}>What We Do</button>
-            {user ? (
-            <button className="nav-signup" onClick={() => {
-              localStorage.removeItem("carbonaire_token");
-              localStorage.removeItem("carbonaire_user");
-              setUser(null);
-            }}>Log Out</button>
-            ) : (
-            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
-            )}
-            <button className="nav-cta" onClick={goCalculator}>Start Calculating</button>
-          </div>
-        </nav>
+        <Navbar 
+          page={page} 
+          user={user} 
+          setUser={setUser} 
+          setPage={setPage} 
+          scrolled={scrolled} 
+          setShowSignup={setShowSignup} 
+          goCalculator={goCalculator} 
+          result={result}
+          setStep={setStep}
+        />
 
         {/* HERO */}
         <HeroSection onStart={goCalculator} onLearnMore={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })} />
@@ -2372,44 +3194,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* FOOTER */}
-        <footer className="footer">
-          <div className="footer-grid">
-            <div className="footer-brand">
-              <div className="footer-logo">Carbonaire</div>
-              <div className="footer-tagline">Carbon footprint assessment for IT and technology organizations.</div>
-            </div>
-            <div>
-              <div className="footer-col-title">Platform</div>
-              <div className="footer-link" onClick={goCalculator}>Calculator</div>
-              <div className="footer-link" onClick={() => setPage("ai")}>AI Assistant</div>
-            </div>
-            <div>
-              <div className="footer-col-title">Company</div>
-              <div className="footer-link" onClick={() => document.getElementById("mission")?.scrollIntoView({ behavior: "smooth" })}>Our Mission</div>
-              <div className="footer-link" onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })}>About</div>
-              <div className="footer-link" onClick={() => document.getElementById("journey")?.scrollIntoView({ behavior: "smooth" })}>How It Works</div>
-              <div className="footer-link" onClick={() => document.getElementById("what-we-do")?.scrollIntoView({ behavior: "smooth" })}>What We Do</div>
-            </div>
-            <div>
-              <div className="footer-col-title">Emissions</div>
-              <div className="footer-link">Direct (Fuel)</div>
-              <div className="footer-link">Electricity</div>
-              <div className="footer-link">Cloud & Services</div>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <div className="footer-copy">© 2025 Carbonaire · Carbon footprint assessment for IT and technology organizations.</div>
-            <div className="footer-sources">
-              <div className="footer-source-title">Data Sources</div>
-              <div className="footer-source-item">CEA Grid Emission Factors (Central Electricity Authority, India)</div>
-              <div className="footer-source-item">GHG Protocol Corporate Standard (World Resources Institute)</div>
-              <div className="footer-source-item">IPCC Emission Factor Database (AR6)</div>
-              <div className="footer-source-item">MoEFCC National Inventory Reports (Government of India)</div>
-              <div className="footer-source-item">IEA World Energy Outlook Electricity Data</div>
-            </div>
-          </div>
-        </footer>
+        <Footer setPage={setPage} goCalculator={goCalculator} />
       </>
     );
   }
@@ -2419,25 +3204,17 @@ export default function App() {
     return (
       <div>
         <style>{GLOBAL_CSS}</style>
-        <nav className="nav-bar scrolled">
-          <div className="nav-logo" onClick={() => setPage("home")}>
-            <div className="nav-hex"><span>C</span></div>
-            Carbonaire
-          </div>
-          <div className="nav-links">
-            <button className="nav-link" onClick={() => setPage("home")}>Back to Home</button>
-            {result && <button className="nav-link" onClick={() => setPage("results")}>View Results</button>}
-            {user ? (
-            <button className="nav-signup" onClick={() => {
-              localStorage.removeItem("carbonaire_token");
-              localStorage.removeItem("carbonaire_user");
-              setUser(null);
-            }}>Log Out</button>
-            ) : (
-            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
-            )}
-          </div>
-        </nav>
+        <Navbar 
+          page={page} 
+          user={user} 
+          setUser={setUser} 
+          setPage={setPage} 
+          scrolled={true} 
+          setShowSignup={setShowSignup} 
+          goCalculator={goCalculator} 
+          result={result}
+          setStep={setStep}
+        />
         {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
 
         <div className="calc-page">
@@ -2504,7 +3281,7 @@ export default function App() {
                     <div className="upload-drop-sub">{excelFile || processingDocs.template ? "" : " .xlsx or .xls · Carbonaire template format only"}</div>
                     {excelFile && !processingDocs.template && (
                       <div className="upload-file-chip">
-                        📄 {excelFile.name}
+                        [FILE] {excelFile.name}
                         <button className="upload-file-chip-remove" onClick={e => { e.stopPropagation(); setExcelFile(null); }}>✕</button>
                       </div>
                     )}
@@ -2873,6 +3650,7 @@ export default function App() {
             </div>
           ) : null}
         </div>
+        <Footer setPage={setPage} goCalculator={goCalculator} />
       </div>
     );
   }
@@ -2980,26 +3758,17 @@ export default function App() {
     return (
       <>
         <style>{GLOBAL_CSS}</style>
-        <nav className="nav-bar scrolled">
-          <div className="nav-logo" onClick={() => setPage("home")}>
-            <div className="nav-hex"><span>C</span></div>
-            Carbonaire
-          </div>
-          <div className="nav-links">
-            <button className="nav-link" onClick={() => { setStep(0); setPage("calculator") }}>Recalculate</button>
-            <button className="nav-link" onClick={() => setPage("home")}>Home</button>
-            {user ? (
-            <button className="nav-signup" onClick={() => {
-              localStorage.removeItem("carbonaire_token");
-              localStorage.removeItem("carbonaire_user");
-              setUser(null);
-            }}>Log Out</button>
-            ) : (
-            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
-            )}
-            <button className="nav-cta" onClick={() => setPage("ai")}>AI Advisor</button>
-          </div>
-        </nav>
+        <Navbar 
+          page={page} 
+          user={user} 
+          setUser={setUser} 
+          setPage={setPage} 
+          scrolled={true} 
+          setShowSignup={setShowSignup} 
+          goCalculator={goCalculator} 
+          result={result}
+          setStep={setStep}
+        />
         {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
 
         <div className="results-section">
@@ -3021,7 +3790,7 @@ export default function App() {
                 <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 68, fontWeight: 300, lineHeight: 1, color: band.col }}>{intensity.toFixed(2)}</div>
                 <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 11, color: "rgba(255,255,255,.4)" }}>tCO2e per Rs Crore revenue</div>
                 <div style={{ marginTop: 10, fontFamily: "JetBrains Mono,monospace", fontSize: 11, color: intensity <= BENCHMARK ? "var(--g300)" : "#E88A6A" }}>
-                  {intensity <= BENCHMARK ? `${((BENCHMARK - intensity) / BENCHMARK * 100).toFixed(1)}% below industry median` : `${((intensity - BENCHMARK) / BENCHMARK * 100).toFixed(1)}% above industry median`}
+                  [OK] {intensity <= BENCHMARK ? `${((BENCHMARK - intensity) / BENCHMARK * 100).toFixed(1)}% below industry median` : `${((intensity - BENCHMARK) / BENCHMARK * 100).toFixed(1)}% above industry median`}
                 </div>
               </div>
             </div>
@@ -3033,17 +3802,6 @@ export default function App() {
                 {apiMessage}
               </div>
             )}
-            <MLInsightsCard data={mlData} />
-            <MLDashboard
-              mlData={mlData}
-              personalization={personalization}
-              learningStatus={learningStatus}
-              user={user}
-              onLogin={() => setShowSignup(true)}
-              inputSnapshot={buildPayload(form)}
-              />
-            
-
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 1, background: "var(--line)", borderRadius: 8, overflow: "hidden", marginBottom: 28, boxShadow: "var(--sh)" }}>
               {[
@@ -3065,428 +3823,443 @@ export default function App() {
               ))}
             </div>
 
-            {/* DATA ORIGINS SEGMENT */}
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Data Origin & Attribution Breakdown</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-                <div className="res-card" style={{ borderTop: "4px solid #228F72" }}>
-                  <div className="res-card-header">
-                    <div className="res-card-title">Verified Machine-Extraction</div>
-                  </div>
-                  <div className="res-card-body">
-                    <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "#228F72", marginBottom: 4 }}>{result.extracted.tot.toFixed(3)} tCO2e/mo</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Calculated purely from provided documents.</div>
-                    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-                      {Object.entries(uploadedDocs).filter(([, v]) => v).map(([k]) => (
-                        <div key={k} style={{ fontSize: 11, marginVertical: 4, color: "var(--ink)" }}>✅ {k.charAt(0).toUpperCase() + k.slice(1)} bill verified</div>
-                      ))}
-                      {Object.values(uploadedDocs).filter(Boolean).length === 0 && <div style={{ fontSize: 11, color: "var(--muted)" }}>No document data attributed.</div>}
-                    </div>
-                  </div>
-                </div>
-                <div className="res-card" style={{ borderTop: "4px solid var(--g400)" }}>
-                  <div className="res-card-header">
-                    <div className="res-card-title">Manual Data Input</div>
-                  </div>
-                  <div className="res-card-body">
-                    <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "var(--ink)", marginBottom: 4 }}>{result.manual.tot.toFixed(3)} tCO2e/mo</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Calculated from user-entered missing values.</div>
-                    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-                      <div style={{ fontSize: 11, color: "var(--muted)" }}>Includes organizational overhead and supplemental records.</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="res-card" style={{ borderTop: "4px solid var(--ink)" }}>
-                  <div className="res-card-header">
-                    <div className="res-card-title">Consolidated Footprint</div>
-                  </div>
-                  <div className="res-card-body">
-                    <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "var(--ink)", marginBottom: 4 }}>{result.combined.tot.toFixed(3)} tCO2e/mo</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Total official organizational impact.</div>
-                    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", height: 10, borderRadius: 99, overflow: "hidden", marginTop: 10 }}>
-                      <div style={{ flex: result.extracted.tot, background: "#228F72" }} title="Extracted" />
-                      <div style={{ flex: result.manual.tot, background: "var(--g400)" }} title="Manual" />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "JetBrains Mono,monospace", fontSize: 8 }}>
-                      <span>DOC: {(result.combined.tot > 0 ? result.extracted.tot / result.combined.tot * 100 : 0).toFixed(0)}%</span>
-                      <span>MAN: {(result.combined.tot > 0 ? result.manual.tot / result.combined.tot * 100 : 0).toFixed(0)}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "220px 220px 1fr", gap: 20, marginBottom: 20 }}>
-              <div className="res-card" style={{ display: "flex", flexDirection: "column" }}>
-                <div className="res-card-header"><div className="res-card-title">Scope Split</div></div>
-                <div className="res-card-body" style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                  <DonutChart data={donutData.filter(d => d.value > 0)} size={140} />
-                  <div style={{ width: "100%", marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                    {donutData.map(d => (
-                      <div key={d.label}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color, flexShrink: 0 }} />
-                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{d.label.split("—")[0].trim()}</span>
-                          </div>
-                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: d.color, fontWeight: 600 }}>{tot > 0 ? (d.value / tot * 100).toFixed(1) : 0}%</span>
-                        </div>
-                        <div style={{ height: 3, background: "var(--g100)", borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${tot > 0 ? (d.value / tot) * 100 : 0}%`, background: d.color, borderRadius: 99 }} />
-                        </div>
-                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", marginTop: 2 }}>{d.value.toFixed(4)} t/mo</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="res-card" style={{ display: "flex", flexDirection: "column" }}>
-                <div className="res-card-header"><div className="res-card-title">Performance</div></div>
-                <div className="res-card-body" style={{ flex: 1 }}>
-                  <div className="gauge-wrap">
-                    <GaugeSVG value={intensity} max={9} color={band.col} />
-                    <div className="gauge-value" style={{ color: band.col }}>{intensity.toFixed(2)}</div>
-                    <div className="gauge-unit">tCO2e / Rs Crore</div>
-                    <div style={{ marginTop: 10, padding: "6px 14px", borderRadius: 99, background: band.bg, border: `1px solid ${band.col}30`, fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: band.col, letterSpacing: ".08em", textTransform: "uppercase" }}>
-                      {band.band}
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 14 }}>
-                    {BANDS.map(b => (
-                      <div key={b.band} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0", borderBottom: "1px solid var(--line)" }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: b.col, flexShrink: 0 }} />
-                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: result.band.band === b.band ? "var(--ink)" : "var(--muted)", flex: 1, fontWeight: result.band.band === b.band ? 600 : 400 }}>{b.band}</div>
-                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{b.min}–{b.max === Infinity ? "∞" : b.max}</div>
-                        {result.band.band === b.band && <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: b.col }}>◀</div>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="res-card">
-                <div className="res-card-header">
-                  <div className="res-card-title">Your Scopes vs Sector Benchmark (tCO2e / yr)</div>
-                </div>
-                <div className="res-card-body">
-                  <ScopeGroupedBar
-                    yours={[annual.s1, annual.s2, annual.s3, annual.tot]}
-                    bench={[bm.s1, bm.s2, bm.s3, bm.tot]}
-                    labels={["Scope 1", "Scope 2", "Scope 3", "Total"]}
-                    colors={["#C05A2C", "#228F72", "#2E5A8A", "var(--ink)"]}
-                  />
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "var(--line)", borderRadius: 4, overflow: "hidden", marginTop: 16 }}>
-                    {[
-                      { label: "Scope 1", yours: annual.s1, bench: bm.s1, col: "#C05A2C" },
-                      { label: "Scope 2", yours: annual.s2, bench: bm.s2, col: "#228F72" },
-                      { label: "Scope 3", yours: annual.s3, bench: bm.s3, col: "#2E5A8A" },
-                      { label: "Total", yours: annual.tot, bench: bm.tot, col: "var(--ink)" },
-                    ].map(c => (
-                      <div key={c.label} style={{ background: "var(--white)", padding: "10px 12px" }}>
-                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 4 }}>{c.label}</div>
-                        <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 20, fontWeight: 300, color: c.col, lineHeight: 1 }}>{c.yours.toFixed(1)}</div>
-                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", marginTop: 3 }}>
-                          vs {c.bench.toFixed(1)} bm
-                          <span style={{ marginLeft: 4, color: c.yours <= c.bench ? "#28541C" : "#C05A2C" }}>
-                            {c.yours <= c.bench ? "✓" : "↑"}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: 10, display: "flex", gap: 16, alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 18, height: 4, borderRadius: 2, background: "var(--g500)" }} />
-                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Your company</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 18, height: 4, borderRadius: 2, background: "rgba(176,128,32,.35)" }} />
-                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Sector benchmark (IT India avg)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-              <div className="res-card">
-                <div className="res-card-header">
-                  <div className="res-card-title">12-Month Cumulative Emissions Projection</div>
-                </div>
-                <div className="res-card-body">
-                  <LineChart you={lineYou} bench={lineBm} max={lineMax} />
-                  <div style={{ display: "flex", gap: 20, marginTop: 10, alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <svg width={20} height={8}><line x1={0} y1={4} x2={20} y2={4} stroke="#228F72" strokeWidth={2.5} /></svg>
-                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Your company ({ann.toFixed(1)} t/yr)</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <svg width={20} height={8}><line x1={0} y1={4} x2={20} y2={4} stroke="#B08020" strokeWidth={1.5} strokeDasharray="4 3" /></svg>
-                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Benchmark ({bm.tot.toFixed(1)} t/yr)</span>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
-                    At current rate your annual footprint will be <strong style={{ color: "var(--ink2)" }}>{ann.toFixed(1)} tCO2e</strong> vs the sector benchmark of <strong style={{ color: "#B08020" }}>{bm.tot.toFixed(1)} tCO2e</strong> for a company of your size and revenue.
-                  </div>
-                </div>
-              </div>
-
-              <div className="res-card">
-                <div className="res-card-header">
-                  <div className="res-card-title">Scope Proportion — You vs Benchmark</div>
-                </div>
-                <div className="res-card-body">
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ fontFamily: "Syne,sans-serif", fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>Your Company</span>
-                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--muted)" }}>{tot.toFixed(3)} tCO2e/mo</span>
-                    </div>
-                    <div style={{ display: "flex", height: 28, borderRadius: 4, overflow: "hidden", gap: 1 }}>
-                      {donutData.filter(d => d.value > 0).map(d => (
-                        <div key={d.label} style={{ flex: d.value, background: d.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {(d.value / tot) > 0.08 && <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#fff" }}>{(d.value / tot * 100).toFixed(0)}%</span>}
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", gap: 2, marginTop: 4 }}>
-                      {donutData.map(d => (
-                        <div key={d.label} style={{ flex: d.value, fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", textAlign: "center" }}>{d.value.toFixed(3)}</div>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ fontFamily: "Syne,sans-serif", fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>Sector Benchmark</span>
-                      <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--muted)" }}>{(bm.tot / 12).toFixed(3)} tCO2e/mo</span>
-                    </div>
-                    <div style={{ display: "flex", height: 28, borderRadius: 4, overflow: "hidden", gap: 1 }}>
-                      <div style={{ flex: bm.s1, background: "rgba(192,90,44,.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#C05A2C" }}>5%</span>
-                      </div>
-                      <div style={{ flex: bm.s2, background: "rgba(34,143,114,.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#228F72" }}>65%</span>
-                      </div>
-                      <div style={{ flex: bm.s3, background: "rgba(46,90,138,.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#2E5A8A" }}>30%</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-                    {[
-                      { label: "Scope 1 — Direct", col: "#C05A2C" },
-                      { label: "Scope 2 — Electricity", col: "#228F72" },
-                      { label: "Scope 3 — Indirect", col: "#2E5A8A" },
-                    ].map(l => (
-                      <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: 2, background: l.col, flexShrink: 0 }} />
-                        <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{l.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: 14, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
-                    Indian IT sector typical split: S1 5% · S2 65% · S3 30%
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-              <div className="res-card">
-                <div className="res-card-header"><div className="res-card-title">Intensity Benchmark — tCO2e / Rs Crore</div></div>
-                <div className="res-card-body">
-                  <div className="bar-chart-wrap">
-                    {[
-                      { label: "Your Company", val: intensity, color: band.col, isYou: true },
-                      { label: "Excellent  2.4", val: 2.4, color: "#28541C", isYou: false },
-                      { label: "Good  3.0", val: 3.0, color: "#4E8A3A", isYou: false },
-                      { label: "IT Median", val: BENCHMARK, color: "#B08020", isYou: false },
-                      { label: "High Emitter  3.6+", val: 4.5, color: "#C05A2C", isYou: false },
-                    ].map((b, i) => {
-                      const maxVal = Math.max(intensity, 4.5, 1);
-                      const pct = (b.val / maxVal) * 100;
-                      return (
-                        <div key={i} className="brow">
-                          <div className="brow-label" style={{ fontWeight: b.isYou ? 700 : 400, color: b.isYou ? b.color : "var(--muted)" }}>{b.label}</div>
-                          <div className="brow-track">
-                            <div className="brow-fill" style={{ width: `${pct}%`, background: b.isYou ? b.color : `${b.color}50` }}>
-                              {b.isYou && <span>{b.val.toFixed(2)}</span>}
-                            </div>
-                            {!b.isYou && <div style={{ position: "absolute", top: 0, left: `${pct}%`, bottom: 0, width: 2, background: b.color, opacity: .8 }} />}
-                          </div>
-                          <div className="brow-val" style={{ color: b.isYou ? b.color : "var(--muted)", fontWeight: b.isYou ? 700 : 400 }}>{b.val.toFixed(2)}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
-                    Lower is better. Your intensity vs sector: {intensity <= BENCHMARK ? `${((BENCHMARK - intensity) / BENCHMARK * 100).toFixed(1)}% below` : `${((intensity - BENCHMARK) / BENCHMARK * 100).toFixed(1)}% above`}
-                  </div>
-                </div>
-              </div>
-
-              <div className="res-card">
-                <div className="res-card-header"><div className="res-card-title">Emission Source Breakdown — Monthly</div></div>
-                <div className="res-card-body">
-                  <div className="bar-chart-wrap">
-                    {srcSorted.map(([k, v], i) => {
-                      const pct = tot > 0 ? (v / tot) * 100 : 0;
-                      const col = srcColors[k] || "var(--g500)";
-                      return (
-                        <div key={i} className="brow">
-                          <div className="brow-label" style={{ color: col }}>{k}</div>
-                          <div className="brow-track">
-                            <div className="brow-fill" style={{ width: `${(v / maxSrc) * 100}%`, background: col }}>
-                              {v > maxSrc * .12 && <span>{v.toFixed(3)} t</span>}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", minWidth: 64 }}>
-                            <div className="brow-val" style={{ color: col, fontSize: 10 }}>{v.toFixed(4)}</div>
-                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>{pct.toFixed(1)}%</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{ marginTop: 16 }}>
-                    <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>Share of total monthly emissions</div>
-                    <div style={{ display: "flex", height: 20, borderRadius: 3, overflow: "hidden", gap: 1 }}>
-                      {srcSorted.map(([k, v], i) => (
-                        <div key={i} title={`${k}: ${(v / tot * 100).toFixed(1)}%`} style={{ flex: v, background: srcColors[k] || "var(--g500)", minWidth: 2 }} />
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 8 }}>
-                      {srcSorted.slice(0, 6).map(([k, v], i) => (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: 1, background: srcColors[k] || "var(--g500)", flexShrink: 0 }} />
-                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>{k} {tot > 0 ? (v / tot * 100).toFixed(1) : 0}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="res-card" style={{ marginBottom: 28 }}>
-              <div className="res-card-header"><div className="res-card-title">Annual Scope Emissions vs Benchmark — Detailed Comparison (tCO2e / year)</div></div>
-              <div className="res-card-body">
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "var(--line)", borderRadius: 6, overflow: "hidden", marginBottom: 24 }}>
-                  {[
-                    { label: "Scope 1 — Direct", yours: annual.s1, bench: bm.s1, color: "#C05A2C" },
-                    { label: "Scope 2 — Electricity", yours: annual.s2, bench: bm.s2, color: "#228F72" },
-                    { label: "Scope 3 — Indirect", yours: annual.s3, bench: bm.s3, color: "#2E5A8A" },
-                    { label: "Total Annual", yours: annual.tot, bench: bm.tot, color: "var(--ink)" },
-                  ].map(c => {
-                    const diff = c.yours - c.bench;
-                    const better = diff <= 0;
-                    return (
-                      <div key={c.label} style={{ background: "var(--white)", padding: "18px 20px" }}>
-                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>{c.label}</div>
-                        <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 32, fontWeight: 300, color: c.color, lineHeight: 1 }}>{c.yours.toFixed(1)}</div>
-                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)", marginTop: 4 }}>tCO2e / year</div>
-                        <div style={{ marginTop: 10 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>You</span>
-                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>Benchmark</span>
-                          </div>
-                          {[
-                            { v: c.yours, col: c.color, max: Math.max(c.yours, c.bench, 0.01) },
-                            { v: c.bench, col: "rgba(176,128,32,.5)", max: Math.max(c.yours, c.bench, 0.01) },
-                          ].map((b, i) => (
-                            <div key={i} style={{ height: 5, background: "var(--g100)", borderRadius: 99, overflow: "hidden", marginBottom: 4 }}>
-                              <div style={{ height: "100%", width: `${(b.v / b.max) * 100}%`, background: b.col, borderRadius: 99 }} />
-                            </div>
-                          ))}
-                          <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: better ? "#28541C" : "#C05A2C", marginTop: 4 }}>
-                            {better ? `${Math.abs(diff).toFixed(1)} t below benchmark` : `${Math.abs(diff).toFixed(1)} t above benchmark`}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div style={{ padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
-                  Benchmark assumes Indian IT sector average of {BENCHMARK} tCO2e/Rs Cr · S1: 5% · S2: 65% · S3: 30% for a company with Rs {(form.revenue || 1).toFixed(1)} Cr revenue.
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 6 }}>Expert System Findings & Recommendations</div>
-              <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 32, fontWeight: 300, color: "var(--ink)", marginBottom: 24, letterSpacing: "-.01em" }}>
-                {fndgs.filter(f => f.sev === "CRITICAL" || f.sev === "HIGH").length} high-priority actions identified
-              </div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "var(--line)", borderRadius: 4, overflow: "hidden", marginBottom: 24 }}>
-              {[
-                { label: "Critical", val: fndgs.filter(f => f.sev === "CRITICAL").length, col: "var(--warn)" },
-                { label: "High", val: fndgs.filter(f => f.sev === "HIGH").length, col: "var(--amber)" },
-                { label: "Medium", val: fndgs.filter(f => f.sev === "MEDIUM").length, col: "var(--blue)" },
-                { label: "Info", val: fndgs.filter(f => f.sev === "INFO").length, col: "var(--g600)" },
-              ].map(c => (
-                <div key={c.label} style={{ background: "var(--white)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 36, fontWeight: 300, color: c.col, lineHeight: 1 }}>{c.val}</div>
-                  <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)" }}>{c.label}</div>
-                </div>
-              ))}
-            </div>
-            {fndgs.map((f, i) => {
-
-            const prefKey = f.cat;
-            const isChecked = savedPrefs.includes(prefKey);
-            const togglePref = async () => {
-              const updated = isChecked ? savedPrefs.filter(x => x !== prefKey) : [...savedPrefs, prefKey];
-              setSavedPrefs(updated);
-              localStorage.setItem("carbonaire_prefs", JSON.stringify(updated));
-              if (user) {
-                try {
-                  await fetch(`${API_BASE}/api/feedback`, {
-                    method: "POST",
-                    headers: authJsonHeaders(),
-                    body: JSON.stringify({ recommendations: updated, input_snapshot: buildPayload(form) })
-                  });
-                } catch(e) { console.log("Feedback save failed:", e); }
-              }
-            };
-            return (
-              <div key={i} className={`finding f-${f.sev}`} style={{ position: "relative" }}>
-                <input type="checkbox" checked={isChecked} onChange={togglePref}
-                style={{ position: "absolute", bottom: 14, left: 16, width: 18, height: 18, cursor: "pointer", accentColor: "var(--g500)" }} />
-                <span style={{ position: "absolute", bottom: 16, left: 38, fontSize: 11, color: "var(--muted)", fontFamily: "JetBrains Mono, monospace" }}>save</span>
-                {f.source === 'ML' && (
-                  <div style={{ position: "absolute", top: 12, right: 16, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 12 }}>✨</span>
-                    <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--g500)", fontWeight: 600 }}>ML-POWERED</span>
-                    {f.confidence && <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--muted)" }}>{f.confidence}%</span>}
-                  </div>
-                )}
-                <div style={{ display: "flex", alignItems: "center", marginBottom: 9 }}>
-                  <span className={`f-badge fb-${f.sev}`}>{f.sev}</span>
-                  <span className="f-scope">{f.scope}</span>
-                  <span className="f-cat">{f.cat}</span>
-                </div>
-                <div className="f-msg">{f.msg}</div>
-                <div className="f-rec" style={{ paddingBottom: 28 }}>{f.rec}</div>
-              </div>
-            );})}
-
-
-            <div style={{ marginTop: 32, textAlign: "center" }}>
-              <button className="btn-hero" style={{ background: "var(--g600)" }} onClick={() => setPage("ai")}>
-                Ask the AI Assistant →
+            <div className="res-tabs">
+              <button 
+                className={`res-tab-btn${resultsTab === "insights" ? " active" : ""}`}
+                onClick={() => setResultsTab("insights")}
+              >
+                Analysis & Attribution
+              </button>
+              <button 
+                className={`res-tab-btn${resultsTab === "recommendations" ? " active" : ""}`}
+                onClick={() => setResultsTab("recommendations")}
+              >
+                Recommendations & Actions
               </button>
             </div>
+
+            {resultsTab === "insights" && (
+              <div className="fade-in">
+                <div style={{ marginBottom: 28 }}>
+                  <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Data Origin & Attribution Breakdown</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+                    <div className="res-card" style={{ borderTop: "4px solid #228F72" }}>
+                      <div className="res-card-header">
+                        <div className="res-card-title">Verified Machine-Extraction</div>
+                      </div>
+                      <div className="res-card-body">
+                        <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "#228F72", marginBottom: 4 }}>{result.extracted.tot.toFixed(3)} tCO2e/mo</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Calculated purely from provided documents.</div>
+                        <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                          {Object.entries(uploadedDocs).filter(([, v]) => v).map(([k]) => (
+                            <div key={k} style={{ fontSize: 11, marginVertical: 4, color: "var(--ink)" }}>[VALID] {k.charAt(0).toUpperCase() + k.slice(1)} bill verified</div>
+                          ))}
+                          {Object.values(uploadedDocs).filter(Boolean).length === 0 && <div style={{ fontSize: 11, color: "var(--muted)" }}>No document data attributed.</div>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="res-card" style={{ borderTop: "4px solid var(--g400)" }}>
+                      <div className="res-card-header">
+                        <div className="res-card-title">Manual Data Input</div>
+                      </div>
+                      <div className="res-card-body">
+                        <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "var(--ink)", marginBottom: 4 }}>{result.manual.tot.toFixed(3)} tCO2e/mo</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Calculated from user-entered missing values.</div>
+                        <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                          <div style={{ fontSize: 11, color: "var(--muted)" }}>Includes organizational overhead and supplemental records.</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="res-card" style={{ borderTop: "4px solid var(--ink)" }}>
+                      <div className="res-card-header">
+                        <div className="res-card-title">Consolidated Footprint</div>
+                      </div>
+                      <div className="res-card-body">
+                        <div style={{ fontSize: 24, fontFamily: "Cormorant Garamond,serif", color: "var(--ink)", marginBottom: 4 }}>{result.combined.tot.toFixed(3)} tCO2e/mo</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Total official organizational impact.</div>
+                        <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", height: 10, borderRadius: 99, overflow: "hidden", marginTop: 10 }}>
+                          <div style={{ flex: result.extracted.tot, background: "#228F72" }} title="Extracted" />
+                          <div style={{ flex: result.manual.tot, background: "var(--g400)" }} title="Manual" />
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "JetBrains Mono,monospace", fontSize: 8 }}>
+                          <span>DOC: {(result.combined.tot > 0 ? result.extracted.tot / result.combined.tot * 100 : 0).toFixed(0)}%</span>
+                          <span>MAN: {(result.combined.tot > 0 ? result.manual.tot / result.combined.tot * 100 : 0).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "220px 220px 1fr", gap: 20, marginBottom: 20 }}>
+                  <div className="res-card" style={{ display: "flex", flexDirection: "column" }}>
+                    <div className="res-card-header"><div className="res-card-title">Scope Split</div></div>
+                    <div className="res-card-body" style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                      <DonutChart data={donutData.filter(d => d.value > 0)} size={140} />
+                      <div style={{ width: "100%", marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                        {donutData.map(d => (
+                          <div key={d.label}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color, flexShrink: 0 }} />
+                                <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{d.label.split("—")[0].trim()}</span>
+                              </div>
+                              <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: d.color, fontWeight: 600 }}>{tot > 0 ? (d.value / tot * 100).toFixed(1) : 0}%</span>
+                            </div>
+                            <div style={{ height: 3, background: "var(--g100)", borderRadius: 99, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${tot > 0 ? (d.value / tot) * 100 : 0}%`, background: d.color, borderRadius: 99 }} />
+                            </div>
+                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", marginTop: 2 }}>{d.value.toFixed(4)} t/mo</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="res-card" style={{ display: "flex", flexDirection: "column" }}>
+                    <div className="res-card-header"><div className="res-card-title">Performance</div></div>
+                    <div className="res-card-body" style={{ flex: 1 }}>
+                      <div className="gauge-wrap">
+                        <GaugeSVG value={intensity} max={9} color={band.col} />
+                        <div className="gauge-value" style={{ color: band.col }}>{intensity.toFixed(2)}</div>
+                        <div className="gauge-unit">tCO2e / Rs Crore</div>
+                        <div style={{ marginTop: 10, padding: "6px 14px", borderRadius: 99, background: band.bg, border: `1px solid ${band.col}30`, fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: band.col, letterSpacing: ".08em", textTransform: "uppercase" }}>
+                          {band.band}
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 14 }}>
+                        {BANDS.map(b => (
+                          <div key={b.band} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0", borderBottom: "1px solid var(--line)" }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: b.col, flexShrink: 0 }} />
+                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: result.band.band === b.band ? "var(--ink)" : "var(--muted)", flex: 1, fontWeight: result.band.band === b.band ? 600 : 400 }}>{b.band}</div>
+                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{b.min}–{b.max === Infinity ? "∞" : b.max}</div>
+                            {result.band.band === b.band && <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: b.col }}>◀</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="res-card">
+                    <div className="res-card-header">
+                      <div className="res-card-title">Your Scopes vs Sector Benchmark (tCO2e / yr)</div>
+                    </div>
+                    <div className="res-card-body">
+                      <ScopeGroupedBar
+                        yours={[annual.s1, annual.s2, annual.s3, annual.tot]}
+                        bench={[bm.s1, bm.s2, bm.s3, bm.tot]}
+                        labels={["Scope 1", "Scope 2", "Scope 3", "Total"]}
+                        colors={["#C05A2C", "#228F72", "#2E5A8A", "var(--ink)"]}
+                      />
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "var(--line)", borderRadius: 4, overflow: "hidden", marginTop: 16 }}>
+                        {[
+                          { label: "Scope 1", yours: annual.s1, bench: bm.s1, col: "#C05A2C" },
+                          { label: "Scope 2", yours: annual.s2, bench: bm.s2, col: "#228F72" },
+                          { label: "Scope 3", yours: annual.s3, bench: bm.s3, col: "#2E5A8A" },
+                          { label: "Total", yours: annual.tot, bench: bm.tot, col: "var(--ink)" },
+                        ].map(c => (
+                          <div key={c.label} style={{ background: "var(--white)", padding: "10px 12px" }}>
+                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 4 }}>{c.label}</div>
+                            <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 20, fontWeight: 300, color: c.col, lineHeight: 1 }}>{c.yours.toFixed(1)}</div>
+                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", marginTop: 3 }}>
+                              vs {c.bench.toFixed(1)} bm
+                              <span style={{ marginLeft: 4, color: c.yours <= c.bench ? "#28541C" : "#C05A2C" }}>
+                                {c.yours <= c.bench ? "[OK]" : "[+]"}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 10, display: "flex", gap: 16, alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 18, height: 4, borderRadius: 2, background: "var(--g500)" }} />
+                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Your company</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 18, height: 4, borderRadius: 2, background: "rgba(176,128,32,.35)" }} />
+                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Sector benchmark (IT India avg)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                  <div className="res-card">
+                    <div className="res-card-header">
+                      <div className="res-card-title">12-Month Cumulative Emissions Projection</div>
+                    </div>
+                    <div className="res-card-body">
+                      <LineChart you={lineYou} bench={lineBm} max={lineMax} />
+                      <div style={{ display: "flex", gap: 20, marginTop: 10, alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <svg width={20} height={8}><line x1={0} y1={4} x2={20} y2={4} stroke="#228F72" strokeWidth={2.5} /></svg>
+                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Your company ({ann.toFixed(1)} t/yr)</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <svg width={20} height={8}><line x1={0} y1={4} x2={20} y2={4} stroke="#B08020" strokeWidth={1.5} strokeDasharray="4 3" /></svg>
+                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>Benchmark ({bm.tot.toFixed(1)} t/yr)</span>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
+                        At current rate your annual footprint will be <strong style={{ color: "var(--ink2)" }}>{ann.toFixed(1)} tCO2e</strong> vs the sector benchmark of <strong style={{ color: "#B08020" }}>{bm.tot.toFixed(1)} tCO2e</strong> for a company of your size and revenue.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="res-card">
+                    <div className="res-card-header">
+                      <div className="res-card-title">Scope Proportion — You vs Benchmark</div>
+                    </div>
+                    <div className="res-card-body">
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontFamily: "Syne,sans-serif", fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>Your Company</span>
+                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--muted)" }}>{tot.toFixed(3)} tCO2e/mo</span>
+                        </div>
+                        <div style={{ display: "flex", height: 28, borderRadius: 4, overflow: "hidden", gap: 1 }}>
+                          {donutData.filter(d => d.value > 0).map(d => (
+                            <div key={d.label} style={{ flex: d.value, background: d.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {(d.value / tot) > 0.08 && <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#fff" }}>{(d.value / tot * 100).toFixed(0)}%</span>}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", gap: 2, marginTop: 4 }}>
+                          {donutData.map(d => (
+                            <div key={d.label} style={{ flex: d.value, fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)", textAlign: "center" }}>{d.value.toFixed(3)}</div>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 24 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontFamily: "Syne,sans-serif", fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>Sector Benchmark</span>
+                          <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--muted)" }}>{(bm.tot / 12).toFixed(3)} tCO2e/mo</span>
+                        </div>
+                        <div style={{ display: "flex", height: 28, borderRadius: 4, overflow: "hidden", gap: 1 }}>
+                          <div style={{ flex: bm.s1, background: "rgba(192,90,44,.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#C05A2C" }}>5%</span>
+                          </div>
+                          <div style={{ flex: bm.s2, background: "rgba(34,143,114,.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#228F72" }}>65%</span>
+                          </div>
+                          <div style={{ flex: bm.s3, background: "rgba(46,90,138,.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "#2E5A8A" }}>30%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                        {[
+                          { label: "Scope 1 — Direct", col: "#C05A2C" },
+                          { label: "Scope 2 — Electricity", col: "#228F72" },
+                          { label: "Scope 3 — Indirect", col: "#2E5A8A" },
+                        ].map(l => (
+                          <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ width: 10, height: 10, borderRadius: 2, background: l.col, flexShrink: 0 }} />
+                            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>{l.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 14, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
+                        Indian IT sector typical split: S1 5% · S2 65% · S3 30%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                  <div className="res-card">
+                    <div className="res-card-header"><div className="res-card-title">Intensity Benchmark — tCO2e / Rs Crore</div></div>
+                    <div className="res-card-body">
+                      <div className="bar-chart-wrap">
+                        {[
+                          { label: "Your Company", val: intensity, color: band.col, isYou: true },
+                          { label: "Excellent  2.4", val: 2.4, color: "#28541C", isYou: false },
+                          { label: "Good  3.0", val: 3.0, color: "#4E8A3A", isYou: false },
+                          { label: "IT Median", val: BENCHMARK, color: "#B08020", isYou: false },
+                          { label: "High Emitter  3.6+", val: 4.5, color: "#C05A2C", isYou: false },
+                        ].map((b, i) => {
+                          const maxVal = Math.max(intensity, 4.5, 1);
+                          const pct = (b.val / maxVal) * 100;
+                          return (
+                            <div key={i} className="brow">
+                              <div className="brow-label" style={{ fontWeight: b.isYou ? 700 : 400, color: b.isYou ? b.color : "var(--muted)" }}>{b.label}</div>
+                              <div className="brow-track">
+                                <div className="brow-fill" style={{ width: `${pct}%`, background: b.isYou ? b.color : `${b.color}50` }}>
+                                  {b.isYou && <span>{b.val.toFixed(2)}</span>}
+                                </div>
+                                {!b.isYou && <div style={{ position: "absolute", top: 0, left: `${pct}%`, bottom: 0, width: 2, background: b.color, opacity: .8 }} />}
+                              </div>
+                              <div className="brow-val" style={{ color: b.isYou ? b.color : "var(--muted)", fontWeight: b.isYou ? 700 : 400 }}>{b.val.toFixed(2)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
+                        Lower is better. Your intensity vs sector: {intensity <= BENCHMARK ? `${((BENCHMARK - intensity) / BENCHMARK * 100).toFixed(1)}% below` : `${((intensity - BENCHMARK) / BENCHMARK * 100).toFixed(1)}% above`}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="res-card">
+                    <div className="res-card-header"><div className="res-card-title">Emission Source Breakdown — Monthly</div></div>
+                    <div className="res-card-body">
+                      <div className="bar-chart-wrap">
+                        {srcSorted.map(([k, v], i) => {
+                          const pct = tot > 0 ? (v / tot) * 100 : 0;
+                          const col = srcColors[k] || "var(--g500)";
+                          return (
+                            <div key={i} className="brow">
+                              <div className="brow-label" style={{ color: col }}>{k}</div>
+                              <div className="brow-track">
+                                <div className="brow-fill" style={{ width: `${(v / maxSrc) * 100}%`, background: col }}>
+                                  {v > maxSrc * .12 && <span>{v.toFixed(3)} t</span>}
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", minWidth: 64 }}>
+                                <div className="brow-val" style={{ color: col, fontSize: 10 }}>{v.toFixed(4)}</div>
+                                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>{pct.toFixed(1)}%</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>Share of total monthly emissions</div>
+                        <div style={{ display: "flex", height: 20, borderRadius: 3, overflow: "hidden", gap: 1 }}>
+                          {srcSorted.map(([k, v], i) => (
+                            <div key={i} title={`${k}: ${(v / tot * 100).toFixed(1)}%`} style={{ flex: v, background: srcColors[k] || "var(--g500)", minWidth: 2 }} />
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 8 }}>
+                          {srcSorted.slice(0, 6).map(([k, v], i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: 1, background: srcColors[k] || "var(--g500)", flexShrink: 0 }} />
+                              <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>{k} {tot > 0 ? (v / tot * 100).toFixed(1) : 0}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="res-card" style={{ marginBottom: 28 }}>
+                  <div className="res-card-header"><div className="res-card-title">Annual Scope Emissions vs Benchmark — Detailed Comparison (tCO2e / year)</div></div>
+                  <div className="res-card-body">
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "var(--line)", borderRadius: 6, overflow: "hidden", marginBottom: 24 }}>
+                      {[
+                        { label: "Scope 1 — Direct", yours: annual.s1, bench: bm.s1, color: "#C05A2C" },
+                        { label: "Scope 2 — Electricity", yours: annual.s2, bench: bm.s2, color: "#228F72" },
+                        { label: "Scope 3 — Indirect", yours: annual.s3, bench: bm.s3, color: "#2E5A8A" },
+                        { label: "Total Annual", yours: annual.tot, bench: bm.tot, color: "var(--ink)" },
+                      ].map(c => {
+                        const diff = c.yours - c.bench;
+                        const better = diff <= 0;
+                        return (
+                          <div key={c.label} style={{ background: "var(--white)", padding: "18px 20px" }}>
+                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>{c.label}</div>
+                            <div style={{ fontFamily: "Cormorant Garamond,serif", fontSize: 32, fontWeight: 300, color: c.color, lineHeight: 1 }}>{c.yours.toFixed(1)}</div>
+                            <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)", marginTop: 4 }}>tCO2e / year</div>
+                            <div style={{ marginTop: 10 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                                <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>You</span>
+                                <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 8, color: "var(--muted)" }}>Benchmark</span>
+                              </div>
+                              {[
+                                { v: c.yours, col: c.color, max: Math.max(c.yours, c.bench, 0.01) },
+                                { v: c.bench, col: "rgba(176,128,32,.5)", max: Math.max(c.yours, c.bench, 0.01) },
+                              ].map((b, i) => (
+                                <div key={i} style={{ height: 5, background: "var(--g100)", borderRadius: 99, overflow: "hidden", marginBottom: 4 }}>
+                                  <div style={{ height: "100%", width: `${(b.v / b.max) * 100}%`, background: b.col, borderRadius: 99 }} />
+                                </div>
+                              ))}
+                              <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: better ? "#28541C" : "#C05A2C", marginTop: 4 }}>
+                                {better ? `${Math.abs(diff).toFixed(1)} t below benchmark` : `${Math.abs(diff).toFixed(1)} t above benchmark`}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ padding: "10px 14px", background: "var(--g50)", borderRadius: 4, border: "1px solid var(--line)", fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--muted)" }}>
+                      Benchmark assumes Indian IT sector average of {BENCHMARK} tCO2e/Rs Cr · S1: 5% · S2: 65% · S3: 30% for a company with Rs {(form.revenue || 1).toFixed(1)} Cr revenue.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {resultsTab === "recommendations" && (
+              <div className="fade-in">
+                <div style={{ marginBottom: 32 }}>
+                  <MLInsightsCard data={mlData} />
+                  <MLDashboard
+                    mlData={mlData}
+                    personalization={personalization}
+                    learningStatus={learningStatus}
+                    user={user}
+                    onLogin={() => setShowSignup(true)}
+                    inputSnapshot={buildPayload(form)}
+                  />
+                </div>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Rule-based Findings</div>
+                {result.findings && result.findings.map((f, i) => (
+                  <div key={i} className="res-card" style={{ marginBottom: 20 }}>
+                    <div className="res-card-body">
+                      <div style={{ marginBottom: 12 }}>
+                        <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--g500)", fontWeight: 600 }}>ML-POWERED</span>
+                        {f.confidence && <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9, color: "var(--muted)", marginLeft: 8 }}>{f.confidence}</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", marginBottom: 9, gap: 8 }}>
+                        <span className={`f-badge fb-${f.sev}`}>{f.sev}</span>
+                        <span className="f-scope" style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--muted)" }}>{f.scope}</span>
+                        <span className="f-cat" style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, color: "var(--muted)" }}>{f.cat}</span>
+                      </div>
+                      <div className="f-msg" style={{ fontSize: 16, fontWeight: 500, color: "var(--ink)", marginBottom: 8 }}>{f.msg}</div>
+                      <div className="f-rec" style={{ paddingBottom: 16, color: "var(--muted)", fontSize: 14 }}>{f.rec}</div>
+                      <div>
+                        <button 
+                          className="btn-back" 
+                          style={{ padding: "8px 16px", fontSize: "10px", borderColor: "var(--g300)", color: "var(--g600)" }}
+                          onClick={() => {
+                             setSimTarget(f);
+                             setPage("simulation");
+                          }}>
+                           Simulate Impact
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <div style={{ marginTop: 32, textAlign: "center" }}>
+                  <button className="btn-hero" style={{ background: "var(--g600)" }} onClick={() => setPage("ai")}>
+                    Ask the AI Assistant →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <footer className="footer">
-          <div className="footer-bottom" style={{ borderTop: "none", paddingTop: 0 }}>
-            <div className="footer-copy">© 2025 Carbonaire · Carbon footprint assessment for IT and technology organizations.</div>
-            <div className="footer-copy">Emission factors sourced from peer-reviewed datasets.</div>
-          </div>
-        </footer>
+        <Footer setPage={setPage} goCalculator={goCalculator} />
       </>
+    );
+  }
+
+  /* ── SIMULATION PAGE ─────────────────────────────────────────────── */
+  if (page === "simulation") {
+    return (
+      <SimulationDashboard 
+        recommendation={simTarget} 
+        onBack={() => setPage("results")} 
+        GLOBAL_CSS={GLOBAL_CSS} 
+        result={result} 
+        user={user}
+        setUser={setUser}
+        setPage={setPage}
+        goCalculator={goCalculator}
+        setShowSignup={setShowSignup}
+      />
     );
   }
 
@@ -3496,26 +4269,17 @@ export default function App() {
       <>
         <style>{GLOBAL_CSS}</style>
         {showSignup && <SignUpModal onClose={() => setShowSignup(false)} onAuthSuccess={setUser} />}
-        <nav className="nav-bar" style={{ background: "rgba(7,26,20,.7)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
-          <div className="nav-logo" style={{ color: "#E8F7F3" }} onClick={() => setPage("home")}>
-            <div className="nav-hex"><span>C</span></div>
-            <span style={{ color: "#E8F7F3" }}>Carbonaire</span>
-          </div>
-          <div className="nav-links">
-            <button className="nav-link" onClick={() => setPage("home")}>Home</button>
-            <button className="nav-link" onClick={goCalculator}>Calculator</button>
-            {result && <button className="nav-link" onClick={() => setPage("results")}>Results</button>}
-            {user ? (
-            <button className="nav-signup" onClick={() => {
-              localStorage.removeItem("carbonaire_token");
-              localStorage.removeItem("carbonaire_user");
-              setUser(null);
-            }}>Log Out</button>
-            ) : (
-            <button className="nav-signup" onClick={() => setShowSignup(true)}>Sign Up</button>
-            )}
-          </div>
-        </nav>
+        <Navbar 
+          page={page} 
+          user={user} 
+          setUser={setUser} 
+          setPage={setPage} 
+          scrolled={scrolled} 
+          setShowSignup={setShowSignup} 
+          goCalculator={goCalculator} 
+          result={result}
+          setStep={setStep}
+        />
 
         <div className="ai-section">
           <div className="ai-header">
@@ -3582,9 +4346,297 @@ export default function App() {
             </div>
           </div>
         </div>
+        <Footer setPage={setPage} goCalculator={goCalculator} />
       </>
+    );
+  }
+
+  /* ── TRANSPARENCY PAGE ─────────────────────────────────────────────── */
+  /* ── TRANSPARENCY PAGE ───────────────────────────────────────────────────── */
+  if (page === "transparency") {
+    return (
+      <TransparencyPage 
+        setPage={setPage} 
+        goCalculator={goCalculator} 
+        user={user} 
+        setUser={setUser} 
+        setShowSignup={setShowSignup} 
+        page={page}
+        scrolled={scrolled}
+        result={result}
+        setStep={setStep}
+      />
+    );
+  }
+
+  /* ── USER DASHBOARD ──────────────────────────────────────────────────────── */
+  if (page === "dashboard") {
+    return (
+      <UserDashboard 
+        user={user} setUser={setUser}
+        page={page} setPage={setPage}
+        dashTab={dashTab} setDashTab={setDashTab}
+        goCalculator={goCalculator}
+        result={result} setResult={setResult}
+        setStep={setStep}
+        onLogout={() => { setUser(null); setPage("home"); }}
+        setForm={setForm}
+        API_BASE={API_BASE}
+        authJsonHeaders={authJsonHeaders}
+        INIT_FORM={INIT_FORM}
+        BANDS={BANDS}
+        GLOBAL_CSS={GLOBAL_CSS}
+      />
     );
   }
 
   return <div><style>{GLOBAL_CSS}</style><button onClick={() => setPage("home")}>Home</button></div>;
 }
+
+/* ── USER DASHBOARD ────────────────────────────────────────────────────────── */
+const UserDashboard = ({ 
+  user, setUser, page, setPage, dashTab, setDashTab,
+  goCalculator, result, setStep, onLogout, setForm, API_BASE, authJsonHeaders, INIT_FORM, BANDS, setResult, GLOBAL_CSS
+}) => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [apiKey, setApiKey] = useState("sk_live_67a2b9..." + Math.random().toString(36).substring(7));
+  const [genning, setGenning] = useState(false);
+  const [residency, setResidency] = useState("India");
+
+  const tabs = [
+    { id: "assessments", label: "Assessments", icon: null },
+    { id: "api_keys", label: "API Keys", icon: null },
+    { id: "data_residency", label: "Data Residency", icon: null },
+    { id: "account", label: "Account Settings", icon: null },
+  ];
+
+  const fetchHistory = async () => {
+    try {
+      const resp = await fetch(`${API_BASE}/api/user/history`, {
+        headers: authJsonHeaders()
+      });
+      const data = await resp.json();
+      if (data.ok) setHistory(data.history);
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { if (dashTab === "assessments") fetchHistory(); }, [dashTab]);
+
+  const deleteItem = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this assessment? This action cannot be undone.")) return;
+    try {
+      const resp = await fetch(`${API_BASE}/api/assessment/${id}`, {
+        method: "DELETE",
+        headers: authJsonHeaders()
+      });
+      const data = await resp.json();
+      if (data.ok) fetchHistory();
+      else alert(data.error || "Failed to delete.");
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+  };
+
+  const viewItem = (item) => {
+    const res = item.results;
+    const inputs = item.inputs;
+    setResult({
+      combined: {
+        tot: res.total_tco2e, ann: res.total_tco2e * 12,
+        s1: res.scope1_tco2e, s2: res.scope2_tco2e, s3: res.scope3_tco2e,
+        intensity: res.intensity,
+        band: BANDS.find(b => res.intensity >= b.min && res.intensity < b.max) || BANDS[3],
+        bdown: {} 
+      },
+      ...res,
+      tot: res.total_tco2e, intensity: res.intensity,
+      monthly: { total_tco2e: res.total_tco2e, scope1_tco2e: res.scope1_tco2e, scope2_tco2e: res.scope2_tco2e, scope3_tco2e: res.scope3_tco2e },
+      annual: { total_tco2e: res.total_tco2e * 12, scope1_tco2e: res.scope1_tco2e * 12, scope2_tco2e: res.scope2_tco2e * 12, scope3_tco2e: res.scope3_tco2e * 12 },
+    });
+    setForm({ ...INIT_FORM, ...inputs });
+    setPage("results");
+  };
+
+  const editItem = (item) => {
+    setForm({ ...INIT_FORM, ...item.inputs });
+    setStep(0);
+    setPage("calculator");
+  };
+
+  const generateKey = () => {
+    setGenning(true);
+    setTimeout(() => {
+      setApiKey("sk_live_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+      setGenning(false);
+    }, 1200);
+  };
+
+  return (
+    <div className="dash-page">
+      <style>{GLOBAL_CSS}</style>
+      <Navbar 
+        page={page} user={user} setUser={setUser} setPage={setPage} 
+        scrolled={true} setShowSignup={() => {}} goCalculator={goCalculator} 
+        result={result} setStep={setStep} 
+      />
+
+      <div className="dash-container">
+        <div className="dash-header">
+          <h1 className="dash-title">ESG Intelligence Hub</h1>
+          <p className="dash-sub">Centralized environmental oversight and corporate documentation for {user?.company_name || "your organization"}.</p>
+        </div>
+
+        <div className="dash-layout">
+          <aside className="dash-sidebar">
+            {tabs.map(t => (
+              <button key={t.id} className={`dash-side-btn${dashTab === t.id ? " active" : ""}`} onClick={() => setDashTab(t.id)}>
+                {t.label}
+              </button>
+            ))}
+            <div style={{ marginTop: "auto", paddingTop: 20 }}>
+              <button className="dash-side-btn" onClick={onLogout} style={{ color: "#A04040" }}>
+                Log Out
+              </button>
+            </div>
+          </aside>
+
+          <main className="dash-main">
+            {dashTab === "assessments" && (
+              <div className="history-table-wrap fade-in">
+                {loading ? (
+                  <div className="empty-state">Loading your audit history...</div>
+                ) : history.length === 0 ? (
+                  <div className="empty-state">
+                    <div style={{ fontSize: 40, color: "var(--line)", marginBottom: 16 }}>[NONE]</div>
+                    <div>No previous assessments found. Start your first calculation to see it here.</div>
+                    <button className="nav-cta" style={{ marginTop: 20, marginLeft: 0 }} onClick={goCalculator}>Start New Calculation</button>
+                  </div>
+                ) : (
+                  <table className="history-table">
+                    <thead>
+                      <tr>
+                        <th>Date & Details</th>
+                        <th>Emissions</th>
+                        <th>Intensity</th>
+                        <th style={{ textAlign: "right" }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map(item => {
+                        const band = BANDS.find(b => item.results.intensity >= b.min && item.results.intensity < b.max) || BANDS[3];
+                        return (
+                          <tr key={item.id}>
+                            <td>
+                              <div className="row-title">{item.inputs.company_name || "Assessment"}</div>
+                              <div className="row-meta">{new Date(item.created_at).toLocaleDateString()} · {item.inputs.location_state || "Unknown"}</div>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 600, color: "var(--ink2)" }}>{item.results.total_tco2e.toFixed(3)} tCO2e/mo</div>
+                              <div className="row-meta">S1: {item.results.scope1_tco2e.toFixed(2)} · S2: {item.results.scope2_tco2e.toFixed(2)}</div>
+                            </td>
+                            <td>
+                              <span className="badge-intensity" style={{ background: band.bg, color: band.col }}>
+                                {item.results.intensity.toFixed(2)}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="action-btns" style={{ justifyContent: "flex-end" }}>
+                                <button className="btn-icon" onClick={() => viewItem(item)}>View</button>
+                                <button className="btn-icon" onClick={() => editItem(item)}>Edit</button>
+                                <button className="btn-icon delete" onClick={() => deleteItem(item.id)}>Delete</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {dashTab === "api_keys" && (
+              <div className="fake-card fade-in">
+                <h2 className="fake-title">API Access & Automation</h2>
+                <p style={{ color: "var(--muted)", marginBottom: 32 }}>Integrate Carbonaire directly into your CI/CD pipelines or cloud billing systems to automate emission tracking.</p>
+                
+                <div className="fake-label">Active API Key</div>
+                <div className="api-key-wrap">
+                  <code className={genning ? "gen-anim" : ""}>{apiKey}</code>
+                  <button className="btn-icon" style={{ width: "auto", padding: "0 12px", fontSize: 10 }} title="Copy Key" onClick={() => alert("Copied to clipboard!")}>COPY</button>
+                </div>
+
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button className="nav-cta" style={{ marginLeft: 0 }} onClick={generateKey} disabled={genning}>
+                    {genning ? "Generating..." : "Roll Secret Key"}
+                  </button>
+                  <button className="btn-hero-ghost" style={{ borderColor: "var(--line)", color: "var(--ink2)", padding: "10px 20px" }}>View API Docs</button>
+                </div>
+
+                <div style={{ marginTop: 40, borderTop: "1px solid var(--line)", paddingTop: 32 }}>
+                  <div className="fake-label">Webhook Endpoints</div>
+                  <p style={{ fontSize: 13, color: "var(--muted)" }}>No webhooks configured. Add an endpoint to receive real-time alerts when emission thresholds are exceeded.</p>
+                </div>
+              </div>
+            )}
+
+            {dashTab === "data_residency" && (
+              <div className="fake-card fade-in">
+                <h2 className="fake-title">Data Sovereignty & Privacy</h2>
+                <p style={{ color: "var(--muted)", marginBottom: 32 }}>Configure where your sensitive operational data is stored and processed to meet local regulatory requirements.</p>
+
+                <div className="fake-label">Storage Region</div>
+                <div className="residency-toggle">
+                  <button className={`res-opt${residency === "India" ? " active" : ""}`} onClick={() => setResidency("India")}>Mumbai (India)</button>
+                  <button className={`res-opt${residency === "Global" ? " active" : ""}`} onClick={() => setResidency("Global")}>Global (Standard)</button>
+                </div>
+
+                <div className="fake-label">Security Protocols</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
+                  <div style={{ padding: 16, background: "var(--g50)", borderRadius: 8, border: "1px solid var(--line)" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>AES-256-GCM</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)" }}>Database-level encryption active for all organizational inputs.</div>
+                  </div>
+                  <div style={{ padding: 16, background: "var(--g50)", borderRadius: 8, border: "1px solid var(--line)" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>TLS 1.3</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)" }}>Secure transport layer active for all API and Browser traffic.</div>
+                  </div>
+                </div>
+
+                <button className="nav-cta" style={{ marginLeft: 0 }}>Save Governance Settings</button>
+              </div>
+            )}
+
+            {dashTab === "account" && (
+              <div className="fake-card fade-in">
+                <h2 className="fake-title">Corporate Account Settings</h2>
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 400 }}>
+                  <div className="fl">
+                    <label>Organization Name</label>
+                    <input type="text" defaultValue={user?.company_name} />
+                  </div>
+                  <div className="fl">
+                    <label>Primary Contact Email</label>
+                    <input type="email" defaultValue={user?.email} />
+                  </div>
+                  <div className="fl">
+                    <label>Default Currency</label>
+                    <select><option>INR (₹)</option><option>USD ($)</option></select>
+                  </div>
+                  <button className="nav-cta" style={{ marginLeft: 0, marginTop: 12 }}>Update Profile</button>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+      <Footer setPage={setPage} goCalculator={goCalculator} />
+    </div>
+  );
+};
