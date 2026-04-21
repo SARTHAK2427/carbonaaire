@@ -392,9 +392,15 @@ class CarbonMLRecommenderV2:
         try:
             X_row = self._build_feature_row(result, data)
 
-            # Decision Tree
-            label  = int(self._dt.predict(X_row)[0])
-            proba  = self._dt.predict_proba(X_row)[0]
+            # Append K-Means cluster as 26th feature (hybrid model expects it)
+            X_scaled = self._scaler.transform(X_row)
+            cluster  = int(self._km.predict(X_scaled)[0])
+            cluster_col = pd.DataFrame([[cluster]], columns=["kmeans_cluster"])
+            X_row_hybrid = pd.concat([X_row.reset_index(drop=True), cluster_col], axis=1)
+
+            # Decision Tree (hybrid)
+            label  = int(self._dt.predict(X_row_hybrid)[0])
+            proba  = self._dt.predict_proba(X_row_hybrid)[0]
             classes = list(self._dt.classes_)
             idx = classes.index(label)
             conf = float(proba[idx]) * 100
