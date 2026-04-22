@@ -3,4 +3,8 @@ pandas
 openpyxl
 fastapi
 uvicorn
+requests
+chromadb
+sentence-transformers
+python-multipart
 

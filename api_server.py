@@ -45,9 +45,14 @@ except Exception as _auth_err:
     AUTH_AVAILABLE = False
     print(f"[WARN] Auth system unavailable: {_auth_err}")
 
-# ─── RAG DISABLED ───────────────────────────────────────────────
-RAG_AVAILABLE = False
-print("[INFO] RAG engine disabled by request.")
+# ─── RAG ENABLED ───────────────────────────────────────────────
+try:
+    from rag.rag_engine import get_answer as rag_get_answer
+    RAG_AVAILABLE = True
+    print("[OK] RAG engine loaded.")
+except Exception as e:
+    RAG_AVAILABLE = False
+    print(f"[WARN] RAG engine disabled: {e}")
 
 # ─── APP ──────────────────────────────────────────────────────
 

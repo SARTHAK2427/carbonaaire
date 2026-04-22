@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import MLDashboard from "./frontend_mldashboard";
 import SimulationDashboard from "./frontend_simulation";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE || "";
 const TOKEN_KEY = "carbonaire_token";
 const USER_KEY = "carbonaire_user";
 
@@ -3015,15 +3015,18 @@ export default function App() {
 
     // Build user emission context if a result is available
     const user_data = result ? {
-      total:     result.combined?.ann ?? result.ann ?? 0,
-      scope1:    result.combined?.s1  ?? result.s1  ?? 0,
-      scope2:    result.combined?.s2  ?? result.s2  ?? 0,
-      scope3:    result.combined?.s3  ?? result.s3  ?? 0,
-      intensity: result.intensity ?? 0,
-      band:      result.band?.band ?? "unknown",
-      renewable: form.renewablePct ?? 0,
+      total: result.combined?.ann ?? result.ann ?? result.annual?.total_tco2e ?? 0,
+      scope1: result.combined?.s1 ?? result.s1 ?? result.annual?.scope1_tco2e ?? 0,
+      scope2: result.combined?.s2 ?? result.s2 ?? result.annual?.scope2_tco2e ?? 0,
+      scope3: result.combined?.s3 ?? result.s3 ?? result.annual?.scope3_tco2e ?? 0,
+      intensity: result.intensity ?? result.combined?.intensity ?? 0,
+      band: result.band?.band ?? result.combined?.band?.band ?? "unknown",
+      renewable: form.renewable ?? 0,
       employees: form.employees ?? 0,
-      servers:   form.serversOnprem ?? 0,
+      servers: form.servers ?? 0,
+      company_name: form.company || "Your Company",
+      industry_type: form.industry || "IT",
+      location_state: form.state || "default",
     } : null;
 
     try {

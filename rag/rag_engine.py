@@ -1,13 +1,16 @@
+import os
+
 import chromadb
-from sentence_transformers import SentenceTransformer
 import requests
-import json
+from sentence_transformers import SentenceTransformer
 
 # Load once when server starts
 print("Loading RAG engine...")
 embedder = SentenceTransformer('all-MiniLM-L6-v2')
 client = chromadb.PersistentClient(path="./rag/chroma_db")
 collection = client.get_collection("carbonaire")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
 
 def get_answer(user_question, user_data=None):
     # Step 1 — embed the question
@@ -37,9 +40,15 @@ def get_answer(user_question, user_data=None):
         renewable = user_data.get("renewable", 0)
         employees = user_data.get("employees", 0)
         servers  = user_data.get("servers", 0)
+        company_name = user_data.get("company_name", "the user")
+        industry_type = user_data.get("industry_type", "IT")
+        location_state = user_data.get("location_state", "India")
 
         user_context = f"""
 The user's actual emission data from Carbonaire:
+- Company: {company_name}
+- Industry: {industry_type}
+- Location: {location_state}
 - Total emissions: {total} tCO2e/year
 - Scope 1 (fuel/diesel): {scope1} tCO2e
 - Scope 2 (electricity): {scope2} tCO2e
@@ -71,9 +80,9 @@ If the question is completely unrelated to carbon emissions or Carbonaire, say:
 
     try:
         response = requests.post(
-            "http://localhost:11434/api/generate",
+            OLLAMA_URL,
             json={
-                "model": "mistral",
+                "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "stream": False,
                 "options": {
@@ -83,6 +92,7 @@ If the question is completely unrelated to carbon emissions or Carbonaire, say:
             },
             timeout=60
         )
+        response.raise_for_status()
         answer = response.json()["response"].strip()
     except Exception as e:
         answer = f"Ollama server not responding. Make sure it is running. Error: {str(e)}"

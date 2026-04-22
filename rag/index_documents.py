@@ -1,6 +1,8 @@
 import json
+
 import chromadb
 from sentence_transformers import SentenceTransformer
+
 
 def build_index():
     # Load Q&A dataset
@@ -9,17 +11,17 @@ def build_index():
 
     # Load embedding model (downloads once, ~80MB)
     print("Loading embedding model...")
-    embedder = SentenceTransformer('all-MiniLM-L6-v2')
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
     # Connect to ChromaDB
     client = chromadb.PersistentClient(path="./rag/chroma_db")
-    
+
     # Delete existing collection if rebuilding
     try:
         client.delete_collection("carbonaire")
-    except:
+    except Exception:
         pass
-    
+
     collection = client.create_collection("carbonaire")
 
     # Prepare data
@@ -32,10 +34,12 @@ def build_index():
         full_text = item["question"] + " " + " ".join(item["keywords"]) + " " + item["answer"]
         documents.append(full_text)
         ids.append(str(item["id"]))
-        metadatas.append({
-            "question": item["question"],
-            "answer": item["answer"]
-        })
+        metadatas.append(
+            {
+                "question": item["question"],
+                "answer": item["answer"],
+            }
+        )
 
     # Generate embeddings
     print(f"Embedding {len(documents)} entries...")
@@ -46,10 +50,11 @@ def build_index():
         embeddings=embeddings,
         documents=documents,
         ids=ids,
-        metadatas=metadatas
+        metadatas=metadatas,
     )
 
-    print(f"✅ Indexed {len(documents)} entries into ChromaDB")
+    print(f"Indexed {len(documents)} entries into ChromaDB")
+
 
 if __name__ == "__main__":
     build_index()

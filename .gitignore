@@ -32,6 +32,9 @@ frontend-dev.log
 *.db
 ml/data/*.csv
 !ml/data/template_*.csv
+rag/chroma_db/
+rag/chroma_db_corrupt_backup_20260422/
+rag/__pycache__/
 
 # Environment variables
 .env
